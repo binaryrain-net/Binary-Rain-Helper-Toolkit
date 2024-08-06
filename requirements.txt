@@ -1,0 +1,20 @@
+# build
+setuptools
+build
+
+# Data processing
+python-dotenv
+pyarrow
+pandas
+pydantic
+requests
+
+# Microsoft - Azure
+azure-functions
+azure-identity
+azure-storage-blob
+azure-monitor-opentelemetry
+azure-monitor-events-extension
+azure-keyvault-secrets
+msal
+pyodbc

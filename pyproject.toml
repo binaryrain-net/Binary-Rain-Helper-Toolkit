@@ -1,0 +1,20 @@
+[project]
+name = "binary_rain_helper_buddy"
+version = "0.0.7"
+authors = [
+    { name="Binary Rain" },
+    { name="Marcel-TO" }
+]
+description = "Aims to simplify and help with commonly used functions in the cloud and data processing areas."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["common", "help", "functions", "cloud", "data processing", "azure", "aws"]
+
+[project.urls]
+Homepage = "https://github.com/binaryrain-net"
