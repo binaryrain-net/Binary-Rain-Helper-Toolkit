@@ -46,7 +46,7 @@ def get_secrets_data(secret_name: str, logger: Logger = logger) -> dict:
     return credentials
 
 
-def get_survey_confiugration(
+def get_app_confiugration(
     app_config_name: str,
     app_config_env: str,
     app_config_app: str,
