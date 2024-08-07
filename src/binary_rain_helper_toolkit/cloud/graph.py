@@ -4,19 +4,38 @@ from azure.keyvault.secrets import SecretClient
 import msal
 
 def get_graph_api_access_token(
-        key_vault_url: str,
-        client_id: str,
-        client_secret: str,
-        tenant_id: str,
-        credential: DefaultAzureCredential = None,
-        graph_scope: str = "https://graph.microsoft.com/.default"
+    key_vault_url: str,
+    client_id_name: str,
+    client_secret_name: str,
+    tenant_id_name: str,
+    credential: DefaultAzureCredential | any = DefaultAzureCredential(),
+    graph_scope: str = "https://graph.microsoft.com/.default"
 ) -> str :
-    """retrieve access token for Microsoft Graph API from Azure Key Vault"""
+    """
+    Retrieve access token for Microsoft Graph API from Azure Key Vault
+    
+    ### Parameters:
+    ----------
+    key_vault_url : str
+        The URL of the Azure Key Vault.
+    client_id_name : str
+        The client ID of the Azure AD application.
+    client_secret_name : str
+        The client secret of the Azure AD application.
+    tenant_id_name : str
+        The tenant ID of the Azure AD application.
+    credential : DefaultAzureCredential, optional
+        The Azure credential, by default None.
+    graph_scope : str, optional
+        The scope of the Microsoft Graph API, by default "https://graph.microsoft.com/.default"
 
-    if credential is None:
-        # default credential will be managed identity if deployed to Azure
-        # to run locally first use az login to authenticate with Azure
-        credential = DefaultAzureCredential()
+    ### Returns:
+    ----------
+    token: str
+        The access token for the Microsoft Graph API.
+    exception: ValueError
+        The exception raised if an error occurs while trying to access the Graph API token.
+    """
     client = SecretClient(vault_url=key_vault_url, credential=credential)
 
     # Checks if client is set
@@ -25,9 +44,9 @@ def get_graph_api_access_token(
         raise ValueError("Error creating DefaultAzureCredential client.")
 
     # Setup MSAL configuration
-    client_id = client.get_secret(client_id)
-    client_secret = client.get_secret(client_secret)
-    tenant_id = client.get_secret(tenant_id)
+    client_id = client.get_secret(client_id_name)
+    client_secret = client.get_secret(client_secret_name)
+    tenant_id = client.get_secret(tenant_id_name)
 
     if client_id is None:
         raise ValueError("client_id is not set.")

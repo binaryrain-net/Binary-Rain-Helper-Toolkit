@@ -18,3 +18,7 @@ azure-monitor-events-extension
 azure-keyvault-secrets
 msal
 pyodbc
+
+# AWS
+boto3
+aws_lambda_powertools
