@@ -11,7 +11,3 @@ updates:
     directory: "/.github/workflows"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "pip"
-    directory: "Azure Functions/Demo"
-    schedule:
-      interval: "weekly"
