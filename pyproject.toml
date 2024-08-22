@@ -1,6 +1,6 @@
 [project]
 name = "binary_rain_helper_buddy"
-version = "0.0.7"
+version = "0.0.1"
 authors = [
     { name="Binary Rain" },
     { name="Marcel-TO" }
