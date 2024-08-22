@@ -3,7 +3,12 @@ import logging
 from enum import Enum
 import pandas as pd
 
+
 class FileFormat(Enum):
+    """
+    The file formats supported for dataframe creation and conversion.
+    """
+
     PARQUET = 1
     CSV = 2
     DICT = 3
@@ -18,18 +23,14 @@ def create_dataframe(
     """
     Create a dataframe from the file contents.
 
-    ### Parameters:
-    ----------
-    file_contents : bytes | dict
+    :param bytes | dict file_contents:
         The contents of the file to be loaded.
-    file_format : FileFormat
-        The format of the file to be loaded. Currently supported: "csv" and "dict", "parquet".
-    file_format_options : dict | None
+    :param FileFormat file_format:
+        The format of the file to be loaded. Currently supported: `csv` and `dict`, `parquet`, `json`.
+    :param dict | None file_format_options:
         The options for the file format. Default is None.
 
-    ### Returns:
-    ----------
-    dataframe : pd.DataFrame
+    :returns pandas.DataFrame:
         The dataframe created from the file contents
     exception : ValueError
         If an error occurs during dataframe creation
@@ -39,8 +40,12 @@ def create_dataframe(
             if file_format_options is None:
                 dataframe = pd.read_csv(io.BytesIO(file_contents))
             else:
-                dataframe = pd.read_csv(io.BytesIO(file_contents), **file_format_options)
-            dataframe = pd.read_csv(io.BytesIO(file_contents), )
+                dataframe = pd.read_csv(
+                    io.BytesIO(file_contents), **file_format_options
+                )
+            dataframe = pd.read_csv(
+                io.BytesIO(file_contents),
+            )
         elif file_format == FileFormat.DICT:
             if file_format_options is None:
                 dataframe = pd.DataFrame.from_dict(file_contents)
@@ -50,12 +55,16 @@ def create_dataframe(
             if file_format_options is None:
                 dataframe = pd.read_parquet(io.BytesIO(file_contents), engine="pyarrow")
             else:
-                dataframe = pd.read_parquet(io.BytesIO(file_contents), engine="pyarrow", **file_format_options)
+                dataframe = pd.read_parquet(
+                    io.BytesIO(file_contents), engine="pyarrow", **file_format_options
+                )
         elif file_format == FileFormat.JSON:
             if file_format_options is None:
                 dataframe = pd.read_json(io.BytesIO(file_contents))
             else:
-                dataframe = pd.read_json(io.BytesIO(file_contents), **file_format_options)
+                dataframe = pd.read_json(
+                    io.BytesIO(file_contents), **file_format_options
+                )
         else:
             # other laod formats will be added later/when needed, e.g. load from json
             raise TypeError(
@@ -67,6 +76,7 @@ def create_dataframe(
         raise ValueError(error_msg) from exc
     return dataframe
 
+
 def from_dataframe_to_type(
     dataframe: pd.DataFrame,
     file_format: FileFormat,
@@ -75,18 +85,14 @@ def from_dataframe_to_type(
     """
     Converts the dataframe to a specific file format.
 
-    ### Parameters:
-    ----------
-    file_contents : bytes | dict
+    :param bytes | dict file_contents:
         The contents of the file to be loaded.
-    file_format : FileFormat
+    :param FileFormat file_format:
         The format of the file to be loaded.
-    file_format_options : dict | None
+    :param dict | None file_format_options:
         The options for the file format. Default is None.
 
-    ### Returns:
-    ----------
-    content : bytes
+    :returns bytes:
         The file contents
     exception : ValueError
         If an error occurs during dataframe conversion
@@ -106,10 +112,7 @@ def from_dataframe_to_type(
             if file_format_options is None:
                 content = dataframe.to_parquet(engine="pyarrow")
             else:
-                content = dataframe.to_parquet(
-                    engine="pyarrow", 
-                    **file_format_options
-                )
+                content = dataframe.to_parquet(engine="pyarrow", **file_format_options)
         elif file_format == FileFormat.JSON:
             if file_format_options is None:
                 content = dataframe.to_json()
@@ -134,18 +137,14 @@ def merge_dataframes(
     """
     Merge the new dataframe with the history dataframe.
 
-    ### Parameters:
-    ----------
-    df_history : pd.DataFrame
+    :param pd.DataFrame df_history:
         The history dataframe.
-    df_new : pd.DataFrame
+    :param pd.DataFrame df_new:
         The new dataframe to be merged.
-    sort : bool, optional
+    :param bool, optional sort:
         Sort the resulting dataframe. Default is False.
 
-    ### Returns:
-    ----------
-    df_full : pd.DataFrame
+    :returns pandas.DataFrame df_full:
         The merged dataframe.
     exception : ValueError
         If an error occurs during dataframe merging

@@ -17,16 +17,12 @@ def return_http_response(message: str, status_code: int) -> func.HttpResponse:
     """
     Format an HTTP response.
 
-    ### Parameters:
-    ----------
-    message : str
+    :param str message:
         The message to be returned in the response.
-    status_code : int
+    :param int status_code:
         The status code of the response.
 
-    ### Returns:
-    ----------
-    response : func.HttpResponse
+    :returns azure.functions.HttpResponse:
         The formatted HTTP response
     """
     if str(status_code).startswith("2"):
@@ -50,20 +46,16 @@ def read_blob_data(
     """
     Read data from a blob storage account.
 
-    ### Parameters:
-    ----------
-    blob_account : str
+    :param str blob_account:
         The name of the blob account.
-    container_name : str
+    :param str container_name:
         The name of the container.
-    blob_name : str
+    :param str blob_name:
         The name of the blob.
-    file_format : FileFormat, optional
+    :param FileFormat, optional file_format:
         The format of the file to be loaded. Default is FileFormat.PARQUET.
 
-    ### Returns:
-    ----------
-    df : pd.DataFrame
+    :returns pandas.DataFrame:
         The data read from the blob.
     exception : ValueError
         If an error occurs while trying to download the blob data.
@@ -121,27 +113,23 @@ def upload_blob_data(
     """
     Upload data from a blob storage account.
 
-    ### Parameters:
-    ----------
-    blob_account : str
+    :param str blob_account:
         The name of the blob account.
-    container_name : str
+    :param str container_name:
         The name of the container.
-    blob_name : str
+    :param str blob_name:
         The name of the blob.
-    file_format : FileFormat, optional
+    :param FileFormat, optional file_format:
         The format of the file to be loaded. Default is FileFormat.PARQUET.
-    file_format_options : dict, optional
+    :param dict, optional file_format_options:
         The format options for the file. Default is None.
 
-    ### Returns:
-    ----------
-    df : pd.DataFrame
+    :returns pandas.DataFrame:
         The data read from the blob.
     exception : ValueError
         If an error occurs while trying to download the blob data.
 
-    ### Example:
+    Example
     ----------
     ```python
     df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})

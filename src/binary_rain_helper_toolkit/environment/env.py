@@ -1,20 +1,15 @@
 import os
 import logging
 
-def validate_env_settings(
-    required_env_vars: list[str]
-):
+
+def validate_env_settings(required_env_vars: list[str]):
     """
     Validate the required environment variables.
-    
-    ### Parameters:
-    ----------
-    required_env_vars : list[str]
+
+    :param list[str] required_env_vars:
         The list of required environment variables.
 
-    ### Returns:
-    ----------
-    is_valid : bool
+    :returns bool:
         True if all required environment variables are present.
     exception : ValueError
         If any of the required environment variables are missing.

@@ -3,35 +3,32 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 import msal
 
+
 def get_graph_api_access_token(
     key_vault_url: str,
     client_id_name: str,
     client_secret_name: str,
     tenant_id_name: str,
     credential: DefaultAzureCredential | any = DefaultAzureCredential(),
-    graph_scope: str = "https://graph.microsoft.com/.default"
-) -> str :
+    graph_scope: str = "https://graph.microsoft.com/.default",
+) -> str:
     """
     Retrieve access token for Microsoft Graph API from Azure Key Vault
-    
-    ### Parameters:
-    ----------
-    key_vault_url : str
+
+    :param str key_vault_url:
         The URL of the Azure Key Vault.
-    client_id_name : str
+    :param str client_id_name:
         The client ID of the Azure AD application.
-    client_secret_name : str
+    :param str client_secret_name:
         The client secret of the Azure AD application.
-    tenant_id_name : str
+    :param str tenant_id_name:
         The tenant ID of the Azure AD application.
-    credential : DefaultAzureCredential, optional
+    :param DefaultAzureCredential, optional credential:
         The Azure credential, by default None.
-    graph_scope : str, optional
+    :param str, optional graph_scope:
         The scope of the Microsoft Graph API, by default "https://graph.microsoft.com/.default"
 
-    ### Returns:
-    ----------
-    token: str
+    :returns str:
         The access token for the Microsoft Graph API.
     exception: ValueError
         The exception raised if an error occurs while trying to access the Graph API token.
@@ -77,11 +74,11 @@ def get_graph_api_access_token(
     result = msal_app.acquire_token_silent(graph_scope, account=None)
 
     if not result:
-        logging.debug("No suitable token exists in cache. Let's get a new one from AAD.")
+        logging.debug(
+            "No suitable token exists in cache. Let's get a new one from AAD."
+        )
         try:
-            result = msal_app.acquire_token_for_client(
-                scopes=[graph_scope]
-                )
+            result = msal_app.acquire_token_for_client(scopes=[graph_scope])
         except ValueError as e:
             logging.error("Error auqiring a new token Exception: %s", e)
             raise ValueError("Error auqiring a new token.") from e
