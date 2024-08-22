@@ -1,6 +1,7 @@
 # build
 setuptools
 build
+ruff
 
 # Data processing
 python-dotenv
