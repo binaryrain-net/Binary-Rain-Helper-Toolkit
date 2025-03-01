@@ -9,269 +9,90 @@ from botocore.exceptions import ClientError
 logger = Logger()
 
 
-def get_logger() -> Logger:
+def get_secret_data(secret_name: str) -> dict:
     """
-    Initializing the aws logger, logging will be handled via aws_lambda_powertools
-    Returns
-    -------
-    logger : Logger
-        logger object.
-    """
-    return Logger()
-
-
-def get_secrets_data(secret_name: str, logger: Logger = logger) -> dict:
-    """
-    Get secrets data from AWS Secrets Manager.
+    Get secret data from AWS Secrets Manager.
     Returns
     -------
     secrets_data : dict
-        dictionary with secrets data.
+        dictionary with secret data.
     """
     if not secret_name:
         raise ValueError("No secret name provided.")
 
     try:
-        credentials = parameters.get_secret(secret_name, transform="json")
+        secret_data = parameters.get_secret(secret_name, transform="json")
     except parameters.exceptions.GetParameterError as exc:
-        logger.exception(
-            f"Error getting credentials for {secret_name} from SSM, exception: {exc}"
-        )
-        raise ValueError("Error getting credentials from SSM") from exc
+        msg = f"Error getting secret for {secret_name} from SSM. See logs for more details."
+        logger.exception(msg + f" Exception: {exc}")
+        raise ValueError(msg) from exc
     except parameters.exceptions.TransformParameterError as exc:
-        logger.exception(
-            f"Error transofrming the credentials for {secret_name}, exception: {exc}"
-        )
-        raise ValueError("Error transofrming the credentials") from exc
-    return credentials
+        msg = f"Error transforming the secret for {secret_name}. See logs for more details."
+        logger.exception(msg + f" Exception: {exc}")
+        raise ValueError(msg) from exc
+
+    return secret_data
 
 
-def get_app_confiugration(
-    app_config_name: str,
-    app_config_env: str,
-    app_config_app: str,
-    data_handler: str | None = None,
-    logger: Logger = logger,
-) -> dict:
+def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str) -> dict:
     """
     Load confiugration from AWS AppConfig.
 
-    ### Parameters
+    Parameters
     ----------
-    app_config_name : str
-        name of the AppConfig.
-    app_config_env : str
-        name of the AppConfig environment.
-    app_config_app : str
-        name of the AppConfig application.
-    data_handler : str, optional
-        data handler - internal name of the data handler.
-            used for directory structure in S3. Equivalent to a directory
-    logger : Logger
-        logger object.
-            default is the logger object from the module.
+    AppConfig_environment : str
+        Environment name
+    AppConfig_application : str
+        Application name
+    AppConfig_profile : str
+        Profile name
 
-    ### Returns
+    Returns
     -------
     app_config : dict
-        dictionary with the configuration data.
-    exception : Exception
-        exception if the configuration data cannot be loaded.
+        Configuration data for the app.
     """
+    
+    # validate input parameters
+    if not AppConfig_environment:
+        raise ValueError("No environment provided.")
+    if not AppConfig_application:
+        raise ValueError("No application provided.")
+    if not AppConfig_profile:
+        raise ValueError("No profile provided.")
+
     try:
         app_config: bytes = parameters.get_app_config(
-            name=app_config_name, environment=app_config_env, application=app_config_app
+            name = AppConfig_profile,
+            environment = AppConfig_environment,
+            application = AppConfig_application
         )
-        app_config = json.loads(app_config.decode("utf-8"))
     except ClientError as exc:
-        error_msg = (
-            f"Error loading servey configuration data from AppConfig, exception: {exc}"
-        )
-        logger.error(error_msg)
-        raise ClientError(error_msg) from exc
-
-    if data_handler:
-        # return only the handler provided
-        return app_config[data_handler][0]
-    else:
-        # if no specific handler is provided, return all handlers
-        return app_config
-
-
-def validate_dataset_existance(
-    data_handler: str,
-    dataset: str,
-    app_config_name: str,
-    app_config_env: str,
-    app_config_app: str,
-    logger: Logger = logger,
-):
-    """
-    Validate if the dataset is in the list of allowed datasets.
-
-    ### Parameters
-    ----------
-    data_handler : str
-        data handler - internal name of the data handler.
-            used for directory structure in S3. Equivalent to a directory
-    dataset : str
-        dataset - internal name of the dataset.
-            used for directory structure in S3. Equivalent to a filename
-    app_config_name : str
-        name of the AppConfig.
-    app_config_env : str
-        name of the AppConfig environment.
-    app_config_app : str
-        name of the AppConfig application.
-    logger : Logger
-        logger object.
-            default is the logger object from the module.
-
-    ### Returns
-    -------
-    filename : str
-        full path and name of the file in S3, to be used to store/load dataset data from/to S3.
-    exception : Exception
-        exception if the dataset is not in the list of allowed datasets.
-
-    ### Example
-    -------
-    As soon as the AWS Lambda function is prepared and the AppConfig is set it should look something like this:
-    ```json
-    {
-        "data_handler_1": [
-            {
-                "dataset_1": {
-                    "dataset_type": "csv",
-                    "api_status": "active"
-                },
-                "dataset_2": {
-                    "dataset_type": "json",
-                    "api_status": "active"
-                }
-            }
-        ],
-        "data_handler_2": [
-            {
-                "dataset_1": {
-                    "dataset_type": "csv",
-                    "api_status": "active"
-                },
-                "dataset_2": {
-                    "dataset_type": "json",
-                    "api_status": "inactive"
-                }
-            }
-        ]
-    }
-    ```
-
-    To validate the dataset existence, you can use the following code:
-    ```python
-    >>> result = validate_dataset_existance(
-        data_handler="data_handler_1",
-        dataset="dataset_1",
-        app_config_name="MyAppConfigName",
-        app_config_env="MyAppConfigEnvironment",
-        app_config_app="MyAppConfigApplication"
-    )
-
-    >>> print(result)
-        data_handler_1/dataset_1.csv
-    ```
-    """
-    # Validate whether the parameters are provided
-    required_params = [
-        data_handler,
-        dataset,
-        app_config_name,
-        app_config_env,
-        app_config_app,
-    ]
-    for param in required_params:
-        if not param:
-            error_msg = f"Missing required parameter: {param}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-
-    # Load dataset confiugration from AWS AppConfig
+        msg = "Error loading configuration data from AppConfig. See logs for more details."
+        logger.exception(msg + f" Exception: {exc}")
+        raise ValueError(msg) from exc
+    
+    # load the configuration data
     try:
-        dataset_config: bytes = parameters.get_app_config(
-            name=app_config_name, environment=app_config_env, application=app_config_app
-        )
-        dataset_config = json.loads(dataset_config.decode("utf-8"))
-    except ClientError as exc:
-        error_msg = f"Error loading dataset configuration data. Exception: {exc}"
-        logger.error(error_msg)
-        raise ValueError(error_msg) from exc
+        app_config = json.loads(app_config)
+    except json.JSONDecodeError as exc:
+        msg = "Error decoding configuration data from AppConfig. See logs for more details."
+        logger.exception(msg + f" Exception: {exc}")
+        raise ValueError(msg) from exc
 
-    # Find the correct dataset configuration
-    # check if the handler is in the list of allowed handlers
-    if data_handler not in dataset_config:
-        error_msg = f"validation failed for data_handler {data_handler}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-    # check if the dataset is in the list of allowed datasets
-    if dataset not in dataset_config[data_handler][0]:
-        error_msg = f"validation failed for dataset {dataset}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-    # make sure dataset type is defined
-    datatype = dataset_config[data_handler][0][dataset]["dataset_type"]
-    if not datatype:
-        error_msg = f"validation failed for dataset type {datatype}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-    # make sure dataset is allowd to be delivered via API
-    if dataset_config[data_handler][0][dataset]["api_status"] != "active":
-        error_msg = (
-            f"validation failed: dataset {dataset} not allowed to be delivered via API"
-        )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-    # construct filename and return it
-    return f"{data_handler}/{dataset}.{datatype}"
+    return app_config
 
 
-def load_file_from_s3(
-    data_handler: str,
-    dataset: str,
-    app_config_name: str,
-    app_config_env: str,
-    app_config_app: str,
-    s3_bucket_output: str,
-    region_name: str = "eu-central-1",
-    logger: Logger = logger,
-):
+def load_file_from_s3(filename: str, s3_bucket: str) -> bytes:
     """
     Load file from S3 bucket.
 
     ### Parameters
     ----------
-    data_handler : str
-        data handler - internal name of the data handler.
-            used for directory structure in S3. Equivalent to a directory
-    dataset : str
-        dataset - internal name of the dataset.
-            used for directory structure in S3. Equivalent to a filename
-    app_config_name : str
-        name of the AppConfig. Needed for loading the dataset configuration.
-    app_config_env : str
-        name of the AppConfig environment. Needed for loading the dataset configuration.
-    app_config_app : str
-        name of the AppConfig application. Needed for loading the dataset configuration.
-    s3_bucket_output : str
+    filename : str
+        name of the file to load.
+    s3_bucket : str
         name of the S3 bucket where the file is stored.
-    region_name : str
-        name of the region where the S3 bucket is located.
-            default is "eu-central-1"
-    logger : Logger
-        logger object.
-            default is the logger object from the module.
 
     ### Returns
     -------
@@ -281,76 +102,48 @@ def load_file_from_s3(
         exception if the file cannot be loaded from S3.
     """
 
-    # validate dataset
-    try:
-        filename = validate_dataset_existance(
-            data_handler=data_handler,
-            dataset=dataset,
-            app_config_app=app_config_name,
-            app_config_env=app_config_env,
-            app_config_name=app_config_app,
-            logger=logger,
-        )
-    except ValueError as exc:
-        raise exc
+    # validate input parameters
+    if not filename:
+        raise ValueError("No filename provided.")
+    if not s3_bucket:
+        raise ValueError("No S3 bucket provided.")
+
 
     try:
-        boto3.setup_default_session(region_name=region_name)
-        s3client = boto3.client("s3", region_name=region_name)
-        fileobj = s3client.get_object(Bucket=s3_bucket_output, Key=filename)
+        s3_client = boto3.client("s3")
+        file_obj = s3_client.get_object(
+            Bucket = s3_bucket,
+            Key = filename
+        )
     except ClientError as exc:
-        error_msg = f"Could not load file {filename} from S3. exception: {exc}"
-        logger.exception(error_msg)
+        error_msg = f"Could not load file {filename} from S3. Check logs for more details."
+        logger.exception(error_msg + f" Exception: {exc}")
         raise ValueError(error_msg) from exc
 
-    return fileobj["Body"].read()
+    return file_obj["Body"].read()
 
 
-def save_dataset_to_s3(
-    data_handler: str,
-    dataset: str,
-    file_contents: bytes,
-    app_config_name: str,
-    app_config_env: str,
-    app_config_app: str,
-    s3_bucket_output: str,
-    ssekms_key_id: str,
-    region_name: str = "eu-central-1",
-    server_side_encryption: str = "aws:kms",
-    logger: Logger = logger,
-):
+def save_file_to_s3(filename: str, s3_bucket: str, file_contents: bytes, server_side_encryption: str = None, sse_kms_key_id: str = None) -> bool:
     """
     Save file to S3 bucket.
 
     ### Parameters
     ----------
-    data_handler : str
-        data handler - internal name of the data handler.
-            used for directory structure in S3. Equivalent to a directory
-    dataset : str
-        dataset - internal name of the dataset.
-            used for directory structure in S3. Equivalent to a filename
+    filename : str
+        name of the file in S3 for which the presigned URL is generated.
+            if not provided, an exception is raised.
+    s3_bucket : str
+        name of the S3 bucket where the file is stored.
+            if not provided, an exception is raised.
     file_contents : bytes
         file contents as bytes.
-    app_config_name : str
-        name of the AppConfig. Needed for loading the dataset configuration.
-    app_config_env : str
-        name of the AppConfig environment. Needed for loading the dataset configuration.
-    app_config_app : str
-        name of the AppConfig application. Needed for loading the dataset configuration.
-    s3_bucket_output : str
-        name of the S3 bucket where the file is stored.
+            if not provided, an exception is raised.
     ssekms_key_id : str
         KMS key ID for server side encryption.
-    region_name : str
-        name of the region where the S3 bucket is located.
-            default is "eu-central-1"
+            default is None.
     server_side_encryption : str
         server side encryption type.
-            default is "aws:kms"
-    logger : Logger
-        logger object.
-            default is the logger object from the module.
+            default is None.
 
     ### Returns
     -------
@@ -359,72 +152,59 @@ def save_dataset_to_s3(
     exception : Exception
         exception if the file cannot be saved to S3.
     """
-    # validate dataset
-    try:
-        filename = validate_dataset_existance(
-            data_handler=data_handler,
-            dataset=dataset,
-            app_config_app=app_config_name,
-            app_config_env=app_config_env,
-            app_config_name=app_config_app,
-            logger=logger,
-        )
-    except ValueError as exc:
-        raise exc
 
-    # write file to OUTPUT folder
+    # validate input parameters
+    if not filename:
+        raise ValueError("No filename provided.")
+    if not s3_bucket:
+        raise ValueError("No S3 bucket provided.")
+    if not file_contents or not isinstance(file_contents, bytes) or len(file_contents) == 0:
+        raise ValueError("No file contents provided or file contents are empty or not of type bytes.")
+
+    # if server side encryption is provided, make sure the KMS key ID is also provided
+    if server_side_encryption and not sse_kms_key_id:
+        raise ValueError("SSE requested, but no KMS key ID provided for server side encryption.")
+    
     try:
-        boto3.setup_default_session(region_name=region_name)
-        s3_resouce = boto3.resource("s3")
-        s3_resouce.Bucket(s3_bucket_output).put_object(
-            Key=filename,
-            Body=file_contents,
-            ServerSideEncryption=server_side_encryption,
-            SSEKMSKeyId=ssekms_key_id,
-        )
+        s3_client = boto3.client("s3")
+
+        # if server side encryption is provided, use it
+        if server_side_encryption:
+            s3_client.put_object(
+                Bucket = s3_bucket,
+                Key = filename,
+                Body = file_contents,
+                ServerSideEncryption = server_side_encryption,
+                SSEKMSKeyId = sse_kms_key_id,
+            )
+        else:
+            s3_client.put_object(
+                Bucket = s3_bucket,
+                Key = filename,
+                Body = file_contents,
+            )
     except ClientError as exc:
-        error_msg = f"Error saving data to S3 as CSV file: {filename}. exception: {exc}"
-        logger.exception(error_msg)
+        error_msg = f"Error saving {filename} to S3."
+        logger.exception(error_msg + f" Exception: {exc}")
         raise ValueError(error_msg) from exc
     return True
 
 
-def get_s3_presigned_url_readonly(
-    data_handler: str,
-    dataset: str,
-    app_config_name: str,
-    app_config_env: str,
-    app_config_app: str,
-    s3_bucket_output: str,
-    region_name: str = "eu-central-1",
-    logger: Logger = logger,
-):
+def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int = 120) -> str:
     """
-    Get a presigned URL for the file in S3,
-    after validating the dataset against the app config.
+    Get a presigned URL for a file in S3.
 
     ### Parameters
     ----------
-    data_handler : str
-        data handler - internal name of the data handler.
-            used for directory structure in S3. Equivalent to a directory
-    dataset : str
-        dataset - internal name of the dataset.
-            used for directory structure in S3. Equivalent to a filename
-    app_config_name : str
-        name of the AppConfig. Needed for loading the dataset configuration.
-    app_config_env : str
-        name of the AppConfig environment. Needed for loading the dataset configuration.
-    app_config_app : str
-        name of the AppConfig application. Needed for loading the dataset configuration.
-    s3_bucket_output : str
+    filename : str
+        name of the file in S3 for which the presigned URL is generated.
+            if not provided, an exception is raised.
+    s3_bucket : str
         name of the S3 bucket where the file is stored.
-    region_name : str
-        name of the region where the S3 bucket is located.
-            default is "eu-central-1"
-    logger : Logger
-        logger object.
-            default is the logger object from the module.
+            if not provided, an exception is raised.
+    expires_in : int
+        time in seconds for which the presigned URL is valid.
+            default is 120 seconds.
 
     ### Returns
     -------
@@ -433,31 +213,27 @@ def get_s3_presigned_url_readonly(
     exception : Exception
         exception if the presigned URL cannot be created.
     """
-    # validate dataset
-    try:
-        filename = validate_dataset_existance(
-            data_handler=data_handler,
-            dataset=dataset,
-            app_config_app=app_config_name,
-            app_config_env=app_config_env,
-            app_config_name=app_config_app,
-            logger=logger,
-        )
-    except ValueError as exc:
-        raise exc
+
+    # validate input parameters
+    if not filename:
+        raise ValueError("No filename provided.")
+    if not s3_bucket:
+        raise ValueError("No S3 bucket provided.")
 
     try:
         # create S3 client
-        boto3.setup_default_session(region_name=region_name)
-        s3_client = boto3.client("s3", region_name=region_name)
+        s3_client = boto3.client("s3")
         presigned_url = s3_client.generate_presigned_url(
-            ClientMethod="get_object",
-            Params={"Bucket": s3_bucket_output, "Key": filename},
-            ExpiresIn=120,
+            ClientMethod = "get_object",
+            Params = {
+                "Bucket": s3_bucket,
+                "Key": filename
+            },
+            ExpiresIn = expires_in
         )
     except ClientError as exc:
-        error_msg = f"Could not create presigned URL. Exception: {exc}"
-        logger.exception(error_msg)
+        error_msg = "Could not create presigned URL. Check logs for more details."
+        logger.exception(error_msg + f" Exception: {exc}")
         raise ValueError(error_msg) from exc
 
     # return the presigned URL

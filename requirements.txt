@@ -22,4 +22,4 @@ pyodbc
 
 # AWS
 boto3
-aws_lambda_powertools
+aws_lambda_powertools[all]
