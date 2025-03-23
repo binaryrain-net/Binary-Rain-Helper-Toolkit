@@ -48,14 +48,20 @@ def create_dataframe(
                 if file_format_options is None:
                     dataframe = pd.DataFrame.from_dict(file_contents)
                 else:
-                    dataframe = pd.DataFrame.from_dict(file_contents, **file_format_options)
+                    dataframe = pd.DataFrame.from_dict(
+                        file_contents, **file_format_options
+                    )
 
             case FileFormat.PARQUET:
                 if file_format_options is None:
-                    dataframe = pd.read_parquet(io.BytesIO(file_contents), engine="pyarrow")
+                    dataframe = pd.read_parquet(
+                        io.BytesIO(file_contents), engine="pyarrow"
+                    )
                 else:
                     dataframe = pd.read_parquet(
-                        io.BytesIO(file_contents), engine="pyarrow", **file_format_options
+                        io.BytesIO(file_contents),
+                        engine="pyarrow",
+                        **file_format_options,
                     )
 
             case FileFormat.JSON:
@@ -114,7 +120,9 @@ def from_dataframe_to_type(
                 if file_format_options is None:
                     content = dataframe.to_parquet(engine="pyarrow")
                 else:
-                    content = dataframe.to_parquet(engine="pyarrow", **file_format_options)
+                    content = dataframe.to_parquet(
+                        engine="pyarrow", **file_format_options
+                    )
 
             case FileFormat.JSON:
                 if file_format_options is None:
@@ -127,7 +135,9 @@ def from_dataframe_to_type(
                     f"Error converting dataframe. Unknown file format: {file_format}"
                 )
     except Exception as exc:
-        raise ValueError(f"Error converting dataframe. See logs for more details. Exception: {exc}") from exc
+        raise ValueError(
+            f"Error converting dataframe. See logs for more details. Exception: {exc}"
+        ) from exc
 
     return content
 
@@ -158,6 +168,8 @@ def merge_dataframes(
         except Exception as exc:
             raise ValueError(f"Error merging dataframes. Exception: {exc}") from exc
     else:
-        raise ValueError(f"No dataframe provided for df_one - got {type(df_one)} and/or df_two - got {type(df_two)}.")
+        raise ValueError(
+            f"No dataframe provided for df_one - got {type(df_one)} and/or df_two - got {type(df_two)}."
+        )
 
     return df_merged

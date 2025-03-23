@@ -6,7 +6,7 @@ import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
-from data_processing.dataframe import (
+from binaryrain_helper_data_processing import (
     create_dataframe,
     from_dataframe_to_type,
     FileFormat,
