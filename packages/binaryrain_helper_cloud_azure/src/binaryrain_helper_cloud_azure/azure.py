@@ -1,16 +1,9 @@
 import json
-import pandas as pd
-import logging
 
 import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
-
-from binaryrain_helper_data_processing import (
-    create_dataframe,
-    from_dataframe_to_type,
-    FileFormat,
-)
+from azure.keyvault.secrets import SecretClient
 
 
 def return_http_response(message: str, status_code: int) -> func.HttpResponse:
@@ -37,12 +30,7 @@ def return_http_response(message: str, status_code: int) -> func.HttpResponse:
     )
 
 
-def read_blob_data(
-    blob_account: str,
-    container_name: str,
-    blob_name: str,
-    file_format: FileFormat = FileFormat.PARQUET,
-) -> pd.DataFrame:
+def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> bytes:
     """
     Read data from a blob storage account.
 
@@ -52,22 +40,16 @@ def read_blob_data(
         The name of the container.
     :param str blob_name:
         The name of the blob.
-    :param FileFormat, optional file_format:
-        The format of the file to be loaded. Default is FileFormat.PARQUET.
 
-    :returns pandas.DataFrame:
-        The data read from the blob.
+    :returns file_obj : bytes
+        content of the object as bytes.
     exception : ValueError
         If an error occurs while trying to download the blob data.
     """
-    # Initialize the dataframe
-    df = pd.DataFrame()
 
     # validate the input parameters
     if not blob_account or not container_name or not blob_name:
-        error_msg = "Error: Missing required input parameters."
-        logging.error(error_msg)
-        return ValueError(error_msg)
+        raise ValueError("Error: Missing required input parameters.")
 
     try:
         # Create blob service client
@@ -93,25 +75,15 @@ def read_blob_data(
         # Combine the chunks into a single byte array
         byte_array = b"".join(chunk_list)
 
-        # Load data into a pandas dataframe
-        df = create_dataframe(byte_array, file_format)
     except Exception as e:  # pylint: disable=broad-except
-        error_msg = "Error while trying to download the blob data. Exception: %s", e
-        logging.exception(error_msg)
-        return return_http_response(error_msg, 500)
-    return df
+        raise ValueError(f"Error while trying to download the blob data. Exception: {e}")
+    
+    return byte_array
 
 
-def upload_blob_data(
-    blob_account: str,
-    container_name: str,
-    blob_name: str,
-    df: pd.DataFrame,
-    file_format: FileFormat = FileFormat.PARQUET,
-    file_format_options: dict = None,
-) -> pd.DataFrame:
+def upload_blob_data(blob_account: str, container_name: str, blob_name: str, file_contents: bytes) -> bool:
     """
-    Upload data from a blob storage account.
+    Save file to a storage account / blob.
 
     :param str blob_account:
         The name of the blob account.
@@ -119,42 +91,24 @@ def upload_blob_data(
         The name of the container.
     :param str blob_name:
         The name of the blob.
-    :param FileFormat, optional file_format:
-        The format of the file to be loaded. Default is FileFormat.PARQUET.
-    :param dict, optional file_format_options:
-        The format options for the file. Default is None.
+    :param bytes file_contents:
+        The file contents to be saved.
 
-    :returns pandas.DataFrame:
-        The data read from the blob.
-    exception : ValueError
-        If an error occurs while trying to download the blob data.
-
-    Example
-    ----------
-    ```python
-    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
-    file_format_options = {
-        'compression': 'snappy',
-        'use_deprecated_int96_timestamps': True
-    }
-    upload_blob_data(
-        blob_account='blob_account',
-        container_name='container_name',
-        blob_name='blob_name',
-        df=df,
-        file_format=FileFormat.PARQUET,
-        file_format_options=file_format_options
-    )
-    ```
+    :returns bool
+        True if the file was saved successfully.
+    exception : Exception
+        exception if the file cannot be saved.
     """
-    # Initialize the dataframe
-    df = pd.DataFrame()
 
     # validate the input parameters
-    if not blob_account or not container_name or not blob_name:
-        error_msg = "Error: Missing required input parameters."
-        logging.error(error_msg)
-        return ValueError(error_msg)
+    if not blob_account:
+        raise ValueError("No blob account provided.")
+    if not container_name:
+        raise ValueError("No container name provided.")
+    if not blob_name:
+        raise ValueError("No blob name provided.")
+    if not file_contents or not isinstance(file_contents, bytes) or len(file_contents) == 0:
+        raise ValueError("No file contents provided or file contents are empty or not of type bytes.")
 
     try:
         # Create blob service client
@@ -169,19 +123,52 @@ def upload_blob_data(
             blob_name,
         )
 
-        # Upload the fixed dataframe to the blob
-        blob = from_dataframe_to_type(
-            df, file_format, file_format_options=file_format_options
-        )
+        # Upload to the blob
         blob_client.upload_blob(
-            blob,
+            file_contents,
             overwrite=True,
             blob_type="BlockBlob",
-            length=len(blob),
-            connection_timeout=800,
+            length=len(file_contents)
         )
     except Exception as e:  # pylint: disable=broad-except
-        error_msg = "Error while trying to download the blob data. Exception: %s", e
-        logging.exception(error_msg)
-        return return_http_response(error_msg, 500)
-    return df
+        raise ValueError(f"Error while trying to upload the blob data. Exception: {e}")
+    
+    return True
+
+
+def get_secret_data(key_vault_url: str, secret_name: str) -> dict:
+    """
+    Get secret data from Azure Key Vault.
+
+    :param str key_vault_url:
+        The URL of the Azure Key Vault.
+    :param str secret_name:
+        The name of the secret.
+
+    :returns dict:
+        The secret data.
+    exception: ValueError
+        The exception raised if an error occurs while trying to access the secret data.
+    """
+
+    # validate the input parameters
+    if not key_vault_url:
+        raise ValueError("No Key Vault URL provided.")
+    if not secret_name:
+        raise ValueError("No secret name provided.")
+
+    try:
+        # Create a SecretClient
+        secret_client = SecretClient(
+            vault_url = key_vault_url,
+            credential = DefaultAzureCredential(),
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError(f"Error creating SecretClient. Exception: {e}")
+
+    try:
+        secret_data = secret_client.get_secret(secret_name).value
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError(f"Error while trying to get the secret data. Exception: {e}")
+
+    return secret_data

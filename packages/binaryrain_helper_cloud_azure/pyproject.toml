@@ -7,13 +7,12 @@ authors = [
     { name = "Binary Rain" },
     { name = "Marcel T.O", email = "marcel@turobin-ort.at" },
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "azure-functions>=1.21.3",
     "azure-identity>=1.21.0",
     "azure-storage-blob>=12.25.0",
-    "binaryrain-helper-data-processing>=0.0.6",
-    "pandas>=2.2.3",
+    "azure-keyvault-secrets>=4.9.0",
 ]
 
 keywords = ["binary rain", "common", "help", "functions", "azure"]
