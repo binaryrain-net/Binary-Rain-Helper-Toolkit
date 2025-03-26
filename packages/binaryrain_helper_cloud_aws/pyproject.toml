@@ -8,10 +8,7 @@ authors = [
     { name = "Marcel T.O", email = "marcel@turobin-ort.at" },
 ]
 requires-python = ">=3.10"
-dependencies = [
-    "aws-lambda-powertools[all]>=3.8.0",
-    "boto3>=1.37.18",
-]
+dependencies = ["aws-lambda-powertools[all]>=3.8.0", "boto3>=1.37.18"]
 
 keywords = ["binary rain", "common", "help", "functions", "aws"]
 

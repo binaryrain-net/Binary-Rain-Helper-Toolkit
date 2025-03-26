@@ -76,12 +76,16 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
         byte_array = b"".join(chunk_list)
 
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f"Error while trying to download the blob data. Exception: {e}")
-    
+        raise ValueError(
+            f"Error while trying to download the blob data. Exception: {e}"
+        )
+
     return byte_array
 
 
-def upload_blob_data(blob_account: str, container_name: str, blob_name: str, file_contents: bytes) -> bool:
+def upload_blob_data(
+    blob_account: str, container_name: str, blob_name: str, file_contents: bytes
+) -> bool:
     """
     Save file to a storage account / blob.
 
@@ -98,6 +102,24 @@ def upload_blob_data(blob_account: str, container_name: str, blob_name: str, fil
         True if the file was saved successfully.
     exception : Exception
         exception if the file cannot be saved.
+
+    Example
+    ----------
+    ```python
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
+    file_format_options = {
+        'compression': 'snappy',
+        'use_deprecated_int96_timestamps': True
+    }
+    upload_blob_data(
+        blob_account='blob_account',
+        container_name='container_name',
+        blob_name='blob_name',
+        df=df,
+        file_format=FileFormat.PARQUET,
+        file_format_options=file_format_options
+    )
+    ```
     """
 
     # validate the input parameters
@@ -107,8 +129,14 @@ def upload_blob_data(blob_account: str, container_name: str, blob_name: str, fil
         raise ValueError("No container name provided.")
     if not blob_name:
         raise ValueError("No blob name provided.")
-    if not file_contents or not isinstance(file_contents, bytes) or len(file_contents) == 0:
-        raise ValueError("No file contents provided or file contents are empty or not of type bytes.")
+    if (
+        not file_contents
+        or not isinstance(file_contents, bytes)
+        or len(file_contents) == 0
+    ):
+        raise ValueError(
+            "No file contents provided or file contents are empty or not of type bytes."
+        )
 
     try:
         # Create blob service client
@@ -128,11 +156,11 @@ def upload_blob_data(blob_account: str, container_name: str, blob_name: str, fil
             file_contents,
             overwrite=True,
             blob_type="BlockBlob",
-            length=len(file_contents)
+            length=len(file_contents),
         )
     except Exception as e:  # pylint: disable=broad-except
         raise ValueError(f"Error while trying to upload the blob data. Exception: {e}")
-    
+
     return True
 
 
@@ -160,8 +188,8 @@ def get_secret_data(key_vault_url: str, secret_name: str) -> dict:
     try:
         # Create a SecretClient
         secret_client = SecretClient(
-            vault_url = key_vault_url,
-            credential = DefaultAzureCredential(),
+            vault_url=key_vault_url,
+            credential=DefaultAzureCredential(),
         )
     except Exception as e:  # pylint: disable=broad-except
         raise ValueError(f"Error creating SecretClient. Exception: {e}")
