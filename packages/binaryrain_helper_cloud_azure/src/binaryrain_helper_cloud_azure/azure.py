@@ -1,9 +1,11 @@
 import json
+import os
 
 import azure.functions as func
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from azure.keyvault.secrets import SecretClient
+from azure.mgmt.datafactory import DataFactoryManagementClient
 
 
 def return_http_response(message: str, status_code: int) -> func.HttpResponse:
@@ -102,23 +104,6 @@ def upload_blob_data(
         True if the file was saved successfully.
     exception : Exception
         exception if the file cannot be saved.
-
-    Example
-    ----------
-    ```python
-    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
-    file_format_options = {
-        'compression': 'snappy',
-        'use_deprecated_int96_timestamps': True
-    }
-    upload_blob_data(
-        blob_account='blob_account',
-        container_name='container_name',
-        blob_name='blob_name',
-        df=df,
-        file_format=FileFormat.PARQUET,
-        file_format_options=file_format_options
-    )
     ```
     """
 
@@ -200,3 +185,55 @@ def get_secret_data(key_vault_url: str, secret_name: str) -> dict:
         raise ValueError(f"Error while trying to get the secret data. Exception: {e}")
 
     return secret_data
+
+
+def create_adf_pipeline(
+    subscription_id: str,
+    resource_group_name: str,
+    factory_name: str,
+    pipeline_name: str,
+    parameters: dict | None = None,
+) -> str:
+    """
+    Create an Azure Data Factory pipeline run.
+
+    :param str subscription_id:
+            The subscription ID of the Azure account.
+    :param str resource_group_name:
+                The name of the resource group.
+    :param str factory_name:
+                    The name of the Data Factory.
+    :param str pipeline_name:
+                        The name of the pipeline.
+    :param dict parameters:
+                        The parameters to be passed to the pipeline.
+                        Optional.
+
+    :returns str:
+            The run ID of the pipeline run.
+    exception: ValueError
+        The exception raised if an error occurs while trying to create the pipeline run.
+    exception: BrokenPipeError
+        The exception raised if an error occurs while trying to create the pipeline run.
+    """
+    if not subscription_id or subscription_id == "":
+        raise ValueError("No subscription ID provided.")
+
+    try:
+        # Create a data factory client
+        data_factory_client = DataFactoryManagementClient(
+            credential=DefaultAzureCredential(),
+            subscription_id=os.environ.get("AZURE_DATA_FACTORY_SUBSCRIPTION_ID") or "",
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError(f"Error creating DataFactoryManagementClient. Exception: {e}")
+
+    try:
+        response = data_factory_client.pipelines.create_run(
+            resource_group_name, factory_name, pipeline_name, parameters=parameters
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        raise BrokenPipeError(
+            f"Error while trying to create the ADF pipeline. Exception: {e}"
+        )
+    return response.run_id
