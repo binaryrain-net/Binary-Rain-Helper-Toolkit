@@ -1,0 +1,29 @@
+[project]
+name = "binaryrain-helper-cloud-aws"
+version = "0.0.1"
+description = "Aims to simplify and help with commonly used functions in the aws cloud data areas."
+readme = "README.md"
+authors = [
+    { name = "Binary Rain" },
+    { name = "Marcel T.O", email = "marcel@turobin-ort.at" },
+]
+requires-python = ">=3.10"
+dependencies = ["aws-lambda-powertools[all]>=3.8.0", "boto3>=1.37.18"]
+
+keywords = ["binary rain", "common", "help", "functions", "aws"]
+
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/binaryrain-net"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["binaryrain_helper_cloud_aws"]
+package-dir = { "" = "src" }

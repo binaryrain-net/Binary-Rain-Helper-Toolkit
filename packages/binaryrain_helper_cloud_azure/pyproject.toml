@@ -1,0 +1,34 @@
+[project]
+name = "binaryrain-helper-cloud-azure"
+version = "0.0.3"
+description = "Aims to simplify and help with commonly used functions in the azure cloud data areas."
+readme = "README.md"
+authors = [
+    { name = "Binary Rain" },
+    { name = "Marcel T.O", email = "marcel@turobin-ort.at" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "azure-functions>=1.21.3",
+    "azure-identity>=1.21.0",
+    "azure-storage-blob>=12.25.0",
+    "azure-keyvault-secrets>=4.9.0",
+]
+
+keywords = ["binary rain", "common", "help", "functions", "azure"]
+
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/binaryrain-net"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["binaryrain_helper_cloud_azure"]
+package-dir = { "" = "src" }

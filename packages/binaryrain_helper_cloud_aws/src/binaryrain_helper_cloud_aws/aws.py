@@ -1,12 +1,7 @@
 import json
 import boto3
-from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities import parameters
 from botocore.exceptions import ClientError
-
-
-# initialize the logger, logging will be handled via aws_lambda_powertools
-logger = Logger()
 
 
 def get_secret_data(secret_name: str) -> dict:
@@ -23,20 +18,22 @@ def get_secret_data(secret_name: str) -> dict:
     try:
         secret_data = parameters.get_secret(secret_name, transform="json")
     except parameters.exceptions.GetParameterError as exc:
-        msg = f"Error getting secret for {secret_name} from SSM. See logs for more details."
-        logger.exception(msg + f" Exception: {exc}")
-        raise ValueError(msg) from exc
+        raise ValueError(
+            f"Error getting secret for {secret_name} from SSM. Exception: {exc}"
+        ) from exc
     except parameters.exceptions.TransformParameterError as exc:
-        msg = f"Error transforming the secret for {secret_name}. See logs for more details."
-        logger.exception(msg + f" Exception: {exc}")
-        raise ValueError(msg) from exc
+        raise ValueError(
+            f"Error transforming the secret for {secret_name}. Exception: {exc}"
+        ) from exc
 
     return secret_data
 
 
-def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str) -> dict:
+def get_app_config(
+    AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str
+) -> dict:
     """
-    Load confiugration from AWS AppConfig.
+    Load configuration from AWS AppConfig.
 
     Parameters
     ----------
@@ -52,7 +49,7 @@ def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppCo
     app_config : dict
         Configuration data for the app.
     """
-    
+
     # validate input parameters
     if not AppConfig_environment:
         raise ValueError("No environment provided.")
@@ -63,22 +60,22 @@ def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppCo
 
     try:
         app_config: bytes = parameters.get_app_config(
-            name = AppConfig_profile,
-            environment = AppConfig_environment,
-            application = AppConfig_application
+            name=AppConfig_profile,
+            environment=AppConfig_environment,
+            application=AppConfig_application,
         )
     except ClientError as exc:
-        msg = "Error loading configuration data from AppConfig. See logs for more details."
-        logger.exception(msg + f" Exception: {exc}")
-        raise ValueError(msg) from exc
-    
+        raise ValueError(
+            f"Error loading configuration data from AppConfig. Exception: {exc}"
+        ) from exc
+
     # load the configuration data
     try:
         app_config = json.loads(app_config)
     except json.JSONDecodeError as exc:
-        msg = "Error decoding configuration data from AppConfig. See logs for more details."
-        logger.exception(msg + f" Exception: {exc}")
-        raise ValueError(msg) from exc
+        raise ValueError(
+            f"Error decoding configuration data from AppConfig. Exception: {exc}"
+        ) from exc
 
     return app_config
 
@@ -96,8 +93,8 @@ def load_file_from_s3(filename: str, s3_bucket: str) -> bytes:
 
     ### Returns
     -------
-    fileobj : bytes
-        file object as bytes.
+    file_obj : bytes
+        content of the object as bytes.
     exception : Exception
         exception if the file cannot be loaded from S3.
     """
@@ -108,22 +105,24 @@ def load_file_from_s3(filename: str, s3_bucket: str) -> bytes:
     if not s3_bucket:
         raise ValueError("No S3 bucket provided.")
 
-
     try:
         s3_client = boto3.client("s3")
-        file_obj = s3_client.get_object(
-            Bucket = s3_bucket,
-            Key = filename
-        )
+        file_obj = s3_client.get_object(Bucket=s3_bucket, Key=filename)
     except ClientError as exc:
-        error_msg = f"Could not load file {filename} from S3. Check logs for more details."
-        logger.exception(error_msg + f" Exception: {exc}")
-        raise ValueError(error_msg) from exc
+        raise ValueError(
+            f"Could not load file {filename} from S3. Exception: {exc}"
+        ) from exc
 
     return file_obj["Body"].read()
 
 
-def save_file_to_s3(filename: str, s3_bucket: str, file_contents: bytes, server_side_encryption: str = None, sse_kms_key_id: str = None) -> bool:
+def save_file_to_s3(
+    filename: str,
+    s3_bucket: str,
+    file_contents: bytes,
+    server_side_encryption: str = None,
+    sse_kms_key_id: str = None,
+) -> bool:
     """
     Save file to S3 bucket.
 
@@ -158,39 +157,47 @@ def save_file_to_s3(filename: str, s3_bucket: str, file_contents: bytes, server_
         raise ValueError("No filename provided.")
     if not s3_bucket:
         raise ValueError("No S3 bucket provided.")
-    if not file_contents or not isinstance(file_contents, bytes) or len(file_contents) == 0:
-        raise ValueError("No file contents provided or file contents are empty or not of type bytes.")
+    if (
+        not file_contents
+        or not isinstance(file_contents, bytes)
+        or len(file_contents) == 0
+    ):
+        raise ValueError(
+            "No file contents provided or file contents are empty or not of type bytes."
+        )
 
     # if server side encryption is provided, make sure the KMS key ID is also provided
     if server_side_encryption and not sse_kms_key_id:
-        raise ValueError("SSE requested, but no KMS key ID provided for server side encryption.")
-    
+        raise ValueError(
+            "SSE requested, but no KMS key ID provided for server side encryption."
+        )
+
     try:
         s3_client = boto3.client("s3")
 
         # if server side encryption is provided, use it
         if server_side_encryption:
             s3_client.put_object(
-                Bucket = s3_bucket,
-                Key = filename,
-                Body = file_contents,
-                ServerSideEncryption = server_side_encryption,
-                SSEKMSKeyId = sse_kms_key_id,
+                Bucket=s3_bucket,
+                Key=filename,
+                Body=file_contents,
+                ServerSideEncryption=server_side_encryption,
+                SSEKMSKeyId=sse_kms_key_id,
             )
         else:
             s3_client.put_object(
-                Bucket = s3_bucket,
-                Key = filename,
-                Body = file_contents,
+                Bucket=s3_bucket,
+                Key=filename,
+                Body=file_contents,
             )
     except ClientError as exc:
-        error_msg = f"Error saving {filename} to S3."
-        logger.exception(error_msg + f" Exception: {exc}")
-        raise ValueError(error_msg) from exc
+        raise ValueError(f"Error saving {filename} to S3. Exception: {exc}") from exc
     return True
 
 
-def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int = 120) -> str:
+def get_s3_presigned_url_readonly(
+    filename: str, s3_bucket: str, expires_in: int = 120
+) -> str:
     """
     Get a presigned URL for a file in S3.
 
@@ -224,17 +231,14 @@ def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int
         # create S3 client
         s3_client = boto3.client("s3")
         presigned_url = s3_client.generate_presigned_url(
-            ClientMethod = "get_object",
-            Params = {
-                "Bucket": s3_bucket,
-                "Key": filename
-            },
-            ExpiresIn = expires_in
+            ClientMethod="get_object",
+            Params={"Bucket": s3_bucket, "Key": filename},
+            ExpiresIn=expires_in,
         )
     except ClientError as exc:
-        error_msg = "Could not create presigned URL. Check logs for more details."
-        logger.exception(error_msg + f" Exception: {exc}")
-        raise ValueError(error_msg) from exc
+        raise ValueError(
+            f"Could not create presigned URL. Check logs for more details. Exception: {exc}"
+        ) from exc
 
     # return the presigned URL
     return presigned_url
