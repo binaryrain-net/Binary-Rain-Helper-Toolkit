@@ -1,16 +1,11 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "0.0.7"
+version = "0.0.8"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
-authors = [
-    { name = "Binary Rain" },
-    { name = "Marcel T.O", email = "marcel@turobin-ort.at" }
-]
+authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.10"
-dependencies = [
-    "pandas>=2.2.3",
-]
+dependencies = ["pandas>=2.2.3"]
 
 keywords = ["binary rain", "common", "help", "functions", "data processing"]
 
@@ -28,4 +23,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["binaryrain_helper_data_processing"]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
