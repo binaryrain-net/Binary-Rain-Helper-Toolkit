@@ -1,4 +1,3 @@
-import json
 import boto3
 from aws_lambda_powertools.utilities import parameters
 from botocore.exceptions import ClientError
@@ -29,9 +28,7 @@ def get_secret_data(secret_name: str) -> dict:
     return secret_data
 
 
-def get_app_config(
-    AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str
-) -> dict:
+def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str) -> dict:
     """
     Load configuration from AWS AppConfig.
 
@@ -59,22 +56,15 @@ def get_app_config(
         raise ValueError("No profile provided.")
 
     try:
-        app_config: bytes = parameters.get_app_config(
+        app_config = parameters.get_app_config(
             name=AppConfig_profile,
             environment=AppConfig_environment,
             application=AppConfig_application,
+            transform="json"
         )
     except ClientError as exc:
         raise ValueError(
             f"Error loading configuration data from AppConfig. Exception: {exc}"
-        ) from exc
-
-    # load the configuration data
-    try:
-        app_config = json.loads(app_config)
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"Error decoding configuration data from AppConfig. Exception: {exc}"
         ) from exc
 
     return app_config
