@@ -6,10 +6,14 @@ from botocore.exceptions import ClientError
 def get_secret_data(secret_name: str) -> dict:
     """
     Get secret data from AWS Secrets Manager.
-    Returns
-    -------
-    secrets_data : dict
-        dictionary with secret data.
+
+    :param str secret_name:
+        Name of the secret to retrieve.
+
+    :returns dict:
+        Secret data as a dictionary.
+    :raises ValueError:
+        If the secret name is not provided or if there is an error retrieving the secret.
     """
     if not secret_name:
         raise ValueError("No secret name provided.")
@@ -28,23 +32,23 @@ def get_secret_data(secret_name: str) -> dict:
     return secret_data
 
 
-def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str) -> dict:
+def get_app_config(
+    AppConfig_environment: str, AppConfig_application: str, AppConfig_profile: str
+) -> dict:
     """
     Load configuration from AWS AppConfig.
 
-    Parameters
-    ----------
-    AppConfig_environment : str
-        Environment name
-    AppConfig_application : str
-        Application name
-    AppConfig_profile : str
-        Profile name
+    :param str AppConfig_environment:
+        Name of the AppConfig environment.
+    :param str AppConfig_application:
+        Name of the AppConfig application.
+    :param str AppConfig_profile:
+        Name of the AppConfig profile.
 
-    Returns
-    -------
-    app_config : dict
-        Configuration data for the app.
+    :returns dict:
+        Configuration data as a dictionary.
+    :raises ValueError:
+        If any of the parameters are not provided or if there is an error retrieving the configuration.
     """
 
     # validate input parameters
@@ -60,7 +64,7 @@ def get_app_config(AppConfig_environment: str, AppConfig_application: str, AppCo
             name=AppConfig_profile,
             environment=AppConfig_environment,
             application=AppConfig_application,
-            transform="json"
+            transform="json",
         )
     except ClientError as exc:
         raise ValueError(
@@ -74,19 +78,15 @@ def load_file_from_s3(filename: str, s3_bucket: str) -> bytes:
     """
     Load file from S3 bucket.
 
-    ### Parameters
-    ----------
-    filename : str
-        name of the file to load.
-    s3_bucket : str
-        name of the S3 bucket where the file is stored.
+    :param str filename:
+        Name of the file in S3 to load.
+    :param str s3_bucket:
+        Name of the S3 bucket where the file is stored.
 
-    ### Returns
-    -------
-    file_obj : bytes
-        content of the object as bytes.
-    exception : Exception
-        exception if the file cannot be loaded from S3.
+    :returns bytes:
+        File contents as bytes.
+    :raises ValueError:
+        If the filename or S3 bucket is not provided or if there is an error loading the file.
     """
 
     # validate input parameters
@@ -116,30 +116,21 @@ def save_file_to_s3(
     """
     Save file to S3 bucket.
 
-    ### Parameters
-    ----------
-    filename : str
-        name of the file in S3 for which the presigned URL is generated.
-            if not provided, an exception is raised.
-    s3_bucket : str
-        name of the S3 bucket where the file is stored.
-            if not provided, an exception is raised.
-    file_contents : bytes
-        file contents as bytes.
-            if not provided, an exception is raised.
-    ssekms_key_id : str
+    :param str filename:
+        Name of the file to save in S3.
+    :param str s3_bucket:
+        Name of the S3 bucket where the file will be saved.
+    :param bytes file_contents:
+        Contents of the file to save.
+    :param str server_side_encryption: (optional)
+        Type of server side encryption.
+    :param str sse_kms_key_id: (optional)
         KMS key ID for server side encryption.
-            default is None.
-    server_side_encryption : str
-        server side encryption type.
-            default is None.
 
-    ### Returns
-    -------
-    True : bool
-        True if the file was saved successfully.
-    exception : Exception
-        exception if the file cannot be saved to S3.
+    :returns bool:
+        Indicates whether the file got saved successfully, otherwise false.
+    :raises ValueError:
+        If the filename, S3 bucket, or file contents are not provided or if there is an error saving the file.
     """
 
     # validate input parameters
@@ -191,24 +182,17 @@ def get_s3_presigned_url_readonly(
     """
     Get a presigned URL for a file in S3.
 
-    ### Parameters
-    ----------
-    filename : str
-        name of the file in S3 for which the presigned URL is generated.
-            if not provided, an exception is raised.
-    s3_bucket : str
-        name of the S3 bucket where the file is stored.
-            if not provided, an exception is raised.
-    expires_in : int
-        time in seconds for which the presigned URL is valid.
-            default is 120 seconds.
+    :param str filename:
+        Name of the file in S3.
+    :param str s3_bucket:
+        Name of the S3 bucket where the file is stored.
+    :param int expires_in: (optional)
+        Expiration time for the presigned URL in seconds. Default is 120 seconds.
 
-    ### Returns
-    -------
-    presigned_url : str
-        presigned URL for the file in S3.
-    exception : Exception
-        exception if the presigned URL cannot be created.
+    :returns str:
+        Presigned URL for the file in S3.
+    :raises ValueError:
+        If the filename or S3 bucket is not provided or if there is an error generating the presigned URL.
     """
 
     # validate input parameters

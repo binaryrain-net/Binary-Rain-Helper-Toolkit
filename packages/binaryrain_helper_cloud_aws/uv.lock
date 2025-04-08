@@ -73,7 +73,7 @@ wheels = [
 
 [[package]]
 name = "binaryrain-helper-cloud-aws"
-version = "0.0.1"
+version = "0.0.3"
 source = { editable = "." }
 dependencies = [
     { name = "aws-lambda-powertools", extra = ["all"] },
