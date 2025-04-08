@@ -1,12 +1,16 @@
 ---
-name: Example
+name: Publish Toolkit - AWS
 
 "on":
   push:
     branches: [main]
     paths:
-        - .github/workflows/publish-aws.yml
-        - packages/binaryrain_helper_cloud_aws/**
+      - .github/workflows/publish-aws.yml
+      - packages/binaryrain_helper_cloud_aws/**
+
+env:
+  WORKING_DIRECTORY: packages/binaryrain_helper_cloud_aws
+  PACKAGE_NAME: binaryrain_helper_cloud_aws
 
 jobs:
   uv-publish:
@@ -20,10 +24,13 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Install the project
+        working-directory: ${{ env.WORKING_DIRECTORY }}
         run: uv sync --all-extras --dev
 
       - name: Build the package
-        run: uv build --package binaryrain_helper_cloud_aws --no-sources
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: uv build --package ${{ env.PACKAGE_NAME }} --no-sources
 
       - name: Publish the package
+        working-directory: ${{ env.WORKING_DIRECTORY }}
         run: uv publish --token ${{ secrets.PYPI_TOKEN }}
