@@ -1,16 +1,16 @@
 ---
-name: Publish Toolkit - AWS
+name: Publish Toolkit - AZURE
 
 "on":
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-aws.yml
-      - packages/binaryrain_helper_cloud_aws/**
+      - .github/workflows/publish-azure.yml
+      - packages/binaryrain_helper_cloud_azure/**
 
 env:
-  WORKING_DIRECTORY: packages/binaryrain_helper_cloud_aws
-  PACKAGE_NAME: binaryrain_helper_cloud_aws
+  WORKING_DIRECTORY: packages/binaryrain_helper_cloud_azure
+  PACKAGE_NAME: binaryrain_helper_cloud_azure
 
 jobs:
   uv-publish:

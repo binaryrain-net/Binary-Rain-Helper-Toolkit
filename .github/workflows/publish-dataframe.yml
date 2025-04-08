@@ -1,16 +1,16 @@
 ---
-name: Publish Toolkit - AWS
+name: Publish Toolkit - DATAFRAME
 
 "on":
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-aws.yml
-      - packages/binaryrain_helper_cloud_aws/**
+      - .github/workflows/publish-dataframe.yml
+      - packages/binaryrain_helper_data_processing/**
 
 env:
-  WORKING_DIRECTORY: packages/binaryrain_helper_cloud_aws
-  PACKAGE_NAME: binaryrain_helper_cloud_aws
+  WORKING_DIRECTORY: packages/binaryrain_helper_data_processing
+  PACKAGE_NAME: binaryrain_helper_data_processing
 
 jobs:
   uv-publish:
