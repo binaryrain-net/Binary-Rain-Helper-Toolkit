@@ -6,7 +6,18 @@ updates:
     directory: "/.github/workflows"
     schedule:
       interval: "weekly"
+  # update python packages for aws helper
   - package-ecosystem: "pip"
-    directory: "/"
+    directory: "packages/binaryrain_helper_cloud_aws"
+    schedule:
+      interval: "weekly"
+  # update python packages for aws helper
+  - package-ecosystem: "pip"
+    directory: "packages/binaryrain_helper_cloud_azure"
+    schedule:
+      interval: "weekly"
+  # update python packages for aws helper
+  - package-ecosystem: "pip"
+    directory: "packages/binaryrain_helper_data_processing"
     schedule:
       interval: "weekly"
