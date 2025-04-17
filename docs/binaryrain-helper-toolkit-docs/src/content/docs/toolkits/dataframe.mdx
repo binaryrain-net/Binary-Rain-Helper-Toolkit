@@ -1,0 +1,294 @@
+---
+title: Data Processing
+
+description: Simplify common pandas functions
+---
+
+import { Code, Tabs, TabItem } from "@astrojs/starlight/components";
+
+<div style="display: flex; gap: 10px; margin-top: 0">
+  <a
+    href="https://pypi.org/project/binaryrain-helper-data-processing/"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/pypi/v/binaryrain-helper-data-processing?style=for-the-badge&color=%23aad7a0&link=https%3A%2F%2Fpypi.org%2Fproject%2Fbinaryrain-helper-data-processing%2F&logo=pypi&logoColor=%23aad7a0"
+      alt="PyPI Version"
+    />
+  </a>
+  <a
+    href="https://github.com/binaryrain-net/Binary-Rain-Helper-Toolkit/tree/main/packages/binaryrain_helper_data_processing"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/badge/Visit-Github-%23aad7a0?style=for-the-badge&logo=github&logoColor=%23aad7a0"
+      alt="Github"
+    />
+  </a>
+</div>
+
+`binaryrain_helper_data_processing` is a python package that aims to simplify and help with common functions in data processing areas. It builds on top of the [pandas](https://pandas.pydata.org/docs/#) library and provides additional functionality to make data processing easier, reduces boilerplate code and provides clear error messages.
+
+## Installation
+
+To install the package you can use your favorite python package manager:
+
+<Tabs>
+  <TabItem label="PIP">
+    <Code code={`pip install binaryrain-helper-data-processing`} lang="bash" />
+  </TabItem>
+  <TabItem label="UV">
+    <Code code={`uv add binaryrain-helper-data-processing`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+## Supported File Formats
+
+Enum `FileFormat` is used to specify the file format when creating or converting DataFrames. The supported formats include:
+
+- `PARQUET`: For efficient columnar storage
+- `CSV`: For common tabular data
+- `JSON`: For structured data exchange
+- `DICT`: For Python dictionary data
+
+## Key Functions
+
+### create_dataframe()
+> `pd.DataFrame`
+
+simplifies creating pandas DataFrames from various formats:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import FileFormat, create_dataframe
+
+# Create from CSV bytes
+
+df = create_dataframe(csv_bytes, FileFormat.CSV)
+
+# Create with custom options
+
+df = create_dataframe(parquet_bytes, FileFormat.PARQUET,
+file_format_options={'engine': 'pyarrow'})
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+
+- `file_bytes`: `bytes | dict` | The bytes of the file to be converted into a DataFrame.
+- `file_format`: `FileFormat` | The format of the file (e.g., CSV, Parquet, JSON, or Dict).
+- `file_format_options`: `dict | None` | Optional dictionary of options for the file format (e.g., engine for Parquet).
+
+### convert_dataframe_to_type()
+> `bytes | str | dict`
+
+handles converting DataFrames to different formats:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import FileFormat, convert_dataframe_to_type
+
+# ....df is a pandas DataFrame
+
+# Convert to CSV bytes
+
+csv_bytes = convert_dataframe_to_type(df, FileFormat.CSV)
+
+# Convert with custom options
+
+parquet_bytes = convert_dataframe_to_type(df, FileFormat.PARQUET,
+file_format_options={'engine': 'pyarrow'})
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+
+- `dataframe`: `pd.DataFrame` | The DataFrame to be converted.
+- `file_format`: `FileFormat` | The format to convert the DataFrame to (e.g., CSV, Parquet).
+- `file_format_options`: `dict | None` | Optional dictionary of options for the file format (e.g., engine for Parquet or compression).
+
+### merge_dataframes()
+> `pd.DataFrame`
+
+provides a simple way to merge multiple DataFrames:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import merge_dataframes
+
+# ....df1 and df2 are pandas DataFrames
+
+# Merge DataFrames
+
+merged_df = merge_dataframes(df1, df2, sort=True)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+
+- `df_one`: `pd.DataFrame` | The first DataFrame to merge.
+- `df_two`: `pd.DataFrame` | The second DataFrame to merge.
+- `sort`: `bool` | Optional boolean to sort the merged DataFrame. Default is `False`.
+
+### convert_todatetime()
+> `pd.DataFrame`
+
+automatically detects and converts date columns:
+
+Supports common date formats:
+
+- `%d.%m.%Y` (e.g., "31.12.2023")
+- `%Y-%m-%d` (e.g., "2023-12-31")
+- `%Y-%m-%d %H:%M:%S` (e.g., "2023-12-31 23:59:59")
+- `%Y-%m-%dT%H:%M:%S` (ISO format)
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import convert_todatetime
+
+# ....df is a pandas DataFrame
+
+# Convert date columns
+
+df = convert_todatetime(df)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame with date columns to be converted.
+
+### format_datetime_columns()
+> `pd.DataFrame`
+
+formats specific datetime columns:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import format_datetime_columns
+
+# ....df is a pandas DataFrame
+
+# Format date columns directly
+
+df = format_datetime_columns(df, datetime_columns=['date_column1', 'date_column2'], datetime_format='%Y-%m-%d')
+
+# Format date columns to in string columns
+
+df = format_datetime_columns(df, datetime_columns=['date_column1', 'date_column2'], datetime_format='%Y-%m-%d', datetime_columns=['string_column1', 'string_column2'])
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame with datetime columns to be formatted.
+- `datetime_columns`: `list[str]` | List of columns to be formatted.
+- `datetime_format`: `str` | The format to apply to the datetime columns.
+- `datetime_string_columns`: `list[str]` | (Optional) List of columns to be formatted as strings. If not provided, the original columns will be replaced with formatted strings.
+
+### clean_dataframe()
+> `pd.DataFrame`
+
+cleans DataFrames by removing duplicates and missing values:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import clean_dataframe
+
+# ....df is a pandas DataFrame
+
+# Clean DataFrame
+
+df = clean_dataframe(df)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame to be cleaned.
+
+### remove_empty_values()
+> `pd.DataFrame`
+
+filters out empty values from specific columns:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import remove_empty_values
+
+# ....df is a pandas DataFrame
+
+# Remove empty values
+
+df = remove_empty_values(df, filter_column'column1')
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame to be filtered.
+- `filter_column`: `str` | The column to filter out empty values.
+
+### format_numeric_values()
+> `pd.DataFrame`
+
+handles locale-specific number formatting:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing import format_numeric_values
+
+# ....df is a pandas DataFrame
+
+# Convert European number format (1.234,56) to standard format (1,234.56)
+
+df = format_numeric_values(
+df,
+columns=['price', 'quantity'],
+swap_separators=True,
+old_decimal_separator=',',
+old_thousands_separator='.',
+decimal_separator='.',
+thousands_separator=',',
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame with numeric values to be formatted.
+- `columns`: `list[str]` | List of columns to be formatted.
+- `swap_separators`: `bool` | (Optional) Boolean indicating whether to swap the decimal and thousands separators.
+- `old_decimal_separator`: `str` | (Optional) The old decimal separator to be replaced. The default is `,`.
+- `old_thousands_separator`: `str` | (Optional) The old thousands separator to be replaced. The default is `.`.
+- `decimal_separator`: `str` | (Optional) The new decimal separator to be used. The default is `.`.
+- `thousands_separator`: `str` | (Optional) The new thousands separator to be used. The default is `,`.
+- `temp_separator`: `str` | (Optional) Temporary separator used during the conversion process. The default is `|`.
