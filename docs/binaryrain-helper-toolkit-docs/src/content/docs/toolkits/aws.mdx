@@ -1,0 +1,207 @@
+---
+title: Cloud AWS
+description: Simplify AWS SDK functions
+---
+
+import { Code, Tabs, TabItem, LinkButton } from "@astrojs/starlight/components";
+
+<div style="display: flex; gap: 10px; margin-top: 0">
+  <a
+    href="https://pypi.org/project/binaryrain-helper-cloud-aws/"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/pypi/v/binaryrain-helper-cloud-aws?style=for-the-badge&color=%23aad7a0&link=https%3A%2F%2Fpypi.org%2Fproject%2Fbinaryrain-helper-cloud-aws%2F&logo=pypi&logoColor=%23aad7a0"
+      alt="PyPI Version"
+    />
+  </a>
+  <a
+    href="https://github.com/binaryrain-net/Binary-Rain-Helper-Toolkit/tree/main/packages/binaryrain_helper_cloud_aws"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/badge/Visit-Github-%23aad7a0?style=for-the-badge&logo=github&logoColor=%23aad7a0"
+      alt="Github"
+    />
+  </a>
+</div>
+
+`binaryrain_helper_cloud_aws` is a python package that aims to simplify and help with common functions in AWS Cloud areas. It builds on top of the `boto3` and `aws-lambda-powertools` libraries and provides additional functionality to make working with AWS Cloud easier, reduces boilerplate code and provides clear error messages.
+
+## Installation
+
+To install the package you can use your favorite python package manager:
+
+<Tabs>
+  <TabItem label="PIP">
+    <Code code={`pip install binaryrain-helper-cloud-aws`} lang="bash" />
+  </TabItem>
+  <TabItem label="UV">
+    <Code code={`uv add binaryrain-helper-cloud-aws`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+## Key Functions
+
+### get_secret_data()
+> `dict`
+
+retrieves secrets from AWS Secrets Manager:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import get_secret_data
+
+# Get a secret from AWS Secrets Manager
+
+secret = get_secret_data("my-secret")
+
+# Access secret values
+
+database_password = secret["password"]
+`
+}
+lang="python"
+/>
+
+### Parameters
+
+- `secret_name`: `str` | Name of the secret to retreive
+
+### get_app_config()
+> `dict`
+
+simplifies working with AWS AppConfig:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import get_app_config
+
+# Load configuration from AWS AppConfig
+
+config = get_app_config(
+AppConfig_environment="Production",
+AppConfig_application="MyApp",
+AppConfig_profile="DefaultConfig"
+)
+
+# Access configuration values
+
+api_endpoint = config["api_endpoint"]
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `AppConfig_environment`: `str` | The name of the AppConfig environment.
+- `AppConfig_application`: `str` | The name of the AppConfig application
+- `AppConfig_profile`: `str` | The name of the AppConfig profile
+
+### load_file_from_s3()
+> `bytes`
+
+provides a simple way to read data from S3:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import load_file_from_s3
+
+# Load a file from S3
+
+file_bytes = load_file_from_s3(
+filename="data.csv",
+s3_bucket="my-bucket"
+)
+
+# Use the file content
+
+print(f"File size: {len(file_bytes)} bytes")
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `filename`: `str` | The name of the file in S3 to load.
+- `s3_bucket`: `str` | The name of the S3 bucket where the file is stored.
+
+### save_file_to_s3()
+> `bool`
+
+handles uploading files to S3 with optional encryption:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import save_file_to_s3
+
+# Save a file to S3
+
+save_file_to_s3(
+filename="output.json",
+s3_bucket="my-bucket",
+file_contents=json_bytes
+)
+
+# Save with server-side encryption
+
+save_file_to_s3(
+filename="sensitive-data.csv",
+s3_bucket="my-secure-bucket",
+file_contents=csv_bytes,
+server_side_encryption="aws:kms",
+sse_kms_key_id="arn:aws:kms:region:account:key/key-id"
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `filename`: `str` | The name of the file to save in S3.
+- `s3_bucket`: `str` | The name of the S3 bucket where the file will be saved.
+- `file_contents`: `bytes` | The contents of the file to save.
+- `server_side_encryption`: `str = None` | (Optional) The type of server side encryption.
+- `sse_kms_key_id`: `str = None` | (Optional) The KMS Key ID for server side encryption.
+
+### get_s3_presigned_url_readonly()
+> `str`
+
+generates presigned URLs for time-limited S3 object access:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import get_s3_presigned_url_readonly
+
+# Generate a presigned URL valid for 2 minutes
+
+url = get_s3_presigned_url_readonly(
+filename="report.pdf",
+s3_bucket="my-bucket"
+)
+
+# Generate a presigned URL valid for 1 hour
+
+long_url = get_s3_presigned_url_readonly(
+filename="large-dataset.parquet",
+s3_bucket="my-bucket",
+expires_in=3600
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `filename`: `str` | The name of the file in S3.
+- `s3_bucket`: `str` | The name of the S4 bucket where the file is stored.
+- `expires_in`: `int = 120` | The expiration time for the presigned URL in seconds. Default is 120.

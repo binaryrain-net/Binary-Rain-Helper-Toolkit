@@ -1,0 +1,215 @@
+---
+title: Cloud Azure
+description: Simplify Azure SDK functions
+---
+
+import { Code, Tabs, TabItem, LinkButton } from "@astrojs/starlight/components";
+
+<div style="display: flex; gap: 10px; margin-top: 0">
+  <a
+    href="https://pypi.org/project/binaryrain-helper-cloud-azure/"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/pypi/v/binaryrain-helper-cloud-azure?style=for-the-badge&color=%23aad7a0&link=https%3A%2F%2Fpypi.org%2Fproject%2Fbinaryrain-helper-cloud-azure%2F&logo=pypi&logoColor=%23aad7a0"
+      alt="PyPI Version"
+    />
+  </a>
+  <a
+    href="https://github.com/binaryrain-net/Binary-Rain-Helper-Toolkit/tree/main/packages/binaryrain_helper_cloud_azure"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/badge/Visit-Github-%23aad7a0?style=for-the-badge&logo=github&logoColor=%23aad7a0"
+      alt="Github"
+    />
+  </a>
+</div>
+
+`binaryrain_helper_cloud_azure` is a python package that aims to simplify and help with common functions in Azure Cloud areas. It builds on top of the `azure` library and provides additional functionality to make working with Azure Cloud easier, reduces boilerplate code and provides clear error messages.
+
+## Installation
+
+To install the package you can use your favorite python package manager:
+
+<Tabs>
+  <TabItem label="PIP">
+    <Code code={`pip install binaryrain-helper-cloud-azure`} lang="bash" />
+  </TabItem>
+  <TabItem label="UV">
+    <Code code={`uv add binaryrain-helper-cloud-azure`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+## Key Functions
+
+### return_http_response()
+> `azure.functions.HttpResponse`
+
+handles returning HTTP responses with status codes and messages:
+
+<Code
+    code={
+    `
+from binaryrain_helper_cloud_azure import return_http_response
+import json
+
+# Return a 200 OK response
+
+return return_http_response('Success Message', 200)
+
+# Return json data with a 201 Created response
+
+return return_http_response(json.dumps({'key': 'value'}), 201)
+
+# Return a 404 Not Found response
+
+return return_http_response('Resource not found', 404)
+
+# Return a 500 Internal Server Error response
+
+return return_http_response('Internal Server Error', 500)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+
+- `message`: `str` | The message to be returned in the response.
+- `status_code`: `int` | The status code of the response.
+
+### read_blob_data()
+> `bytes`
+
+provides a simplified way to read data from Azure Blob Storage:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_azure import read_blob_data
+
+# Read a Parquet file from blob storage
+
+df = read_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.parquet"
+)
+
+# Read CSV with custom format
+
+df = read_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.csv",
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `blob_account`: `str` | The name of the blob account.
+- `container_name`: `str` | The name of the container.
+- `blob_name`: `str` | The name of the blob.
+
+### upload_blob_data()
+> `bool`
+
+handles uploading dataframes to blob storage:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_azure import upload_blob_data
+
+# Upload dataframe as Parquet
+
+upload_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.parquet",
+df=your_dataframe
+)
+
+# Upload with compression options
+
+upload_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.parquet",
+df=your_dataframe,
+file_format_options={'compression': 'snappy'}
+)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters
+
+- `blob_account`: `str` | The name of the blob account.
+- `container_name`: `str` | The name of the container.
+- `blob_name`: `str` | The name of the blob.
+- `file_contents`: `bytes` | The file contents to be saved.
+
+### get_secret_data()
+> `dict`
+
+Get secret data from Azure Key Vault:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_azure import get_secret_data
+
+secret = get_secret_data("your_keyvault_url", "your_secret_name")
+`
+}
+lang="python"
+
+/>
+
+#### Parameters
+
+- `key_vault_url`: `str` | The URL of the Azure Key Vault.
+- `secret_name`: `str` | The name of the secret.
+
+### create_adf_pipeline()
+> `str`
+
+Create an Azure Data Factory pipeline run:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_azure import create_adf_pipeline
+
+# Create a data factory run
+
+params_json = {"param1": "value1"}
+pipeline_id = create_adf_pipeline(
+subscription_id="your_subscription_id",
+resource_group_name="your_resource_group_name",
+factory_name="your_adf_name",
+pipeline_name="your_pipeline_name",
+parameters=params_json,
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `subscription_id`: `str` | The subscription ID of the Azure account.
+- `resource_group_name`: `str` | The name of the resource group.
+- `factory_name`: `str` | The name of the Data Factory.
+- `pipeline_name`: `str` | The name of the pipeline.
+- `parameters`: `dict | None` | (Optional) The parameters to be passed to the pipeline.
+- `credentials`: `DefaultAzureCredential | TokenCredential` | (Optional) The credentials to be used for authentication. Defaults to `DefaultAzureCredential()`
+- `adf_base_url`: `str` | (Optional) The base URL of the Azure Data Factory Management API. Defaults to `https://management.azure.com`
