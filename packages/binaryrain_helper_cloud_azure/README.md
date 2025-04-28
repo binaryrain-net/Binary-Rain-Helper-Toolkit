@@ -27,28 +27,26 @@
 
   ```python
     from binaryrain_helper_cloud_azure import read_blob_data
-    from binaryrain_helper_data_processing import FileFormat
 
     # Read a Parquet file from blob storage
-    df = read_blob_data(
+    bytes = read_blob_data(
         blob_account="your_account",
         container_name="your_container",
         blob_name="data.parquet"
     )
 
     # Read CSV with custom format
-    df = read_blob_data(
+    bytes = read_blob_data(
         blob_account="your_account",
         container_name="your_container",
         blob_name="data.csv",
-        file_format=FileFormat.CSV
     )
   ```
 
 - `upload_blob_data()`: handles uploading dataframes to blob storage:
 
   ```python
-      from binaryrain_helper_cloud_azure import upload_blob_data, FileFormat
+      from binaryrain_helper_cloud_azure import upload_blob_data
 
       # Upload dataframe as Parquet
       upload_blob_data(

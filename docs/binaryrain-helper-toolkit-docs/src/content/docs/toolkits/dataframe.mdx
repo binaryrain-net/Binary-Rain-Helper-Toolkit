@@ -115,21 +115,21 @@ lang="python"
 - `file_format`: `FileFormat` | The format to convert the DataFrame to (e.g., CSV, Parquet).
 - `file_format_options`: `dict | None` | Optional dictionary of options for the file format (e.g., engine for Parquet or compression).
 
-### merge_dataframes()
+### combine_dataframes()
 > `pd.DataFrame`
 
-provides a simple way to merge multiple DataFrames:
+provides a simple way to combine multiple DataFrames:
 
 <Code
     code={
     `
-from binaryrain_helper_data_processing import merge_dataframes
+from binaryrain_helper_data_processing import combine_dataframes
 
 # ....df1 and df2 are pandas DataFrames
 
-# Merge DataFrames
+# Combine DataFrames
 
-merged_df = merge_dataframes(df1, df2, sort=True)
+combined_df = combine_dataframes(df1, df2, sort=True)
 `
 }
 lang="python"
@@ -138,14 +138,14 @@ lang="python"
 
 #### Parameters:
 
-- `df_one`: `pd.DataFrame` | The first DataFrame to merge.
-- `df_two`: `pd.DataFrame` | The second DataFrame to merge.
-- `sort`: `bool` | Optional boolean to sort the merged DataFrame. Default is `False`.
+- `df_one`: `pd.DataFrame` | The first DataFrame to combine.
+- `df_two`: `pd.DataFrame` | The second DataFrame to combine.
+- `sort`: `bool` | Optional boolean to sort the combine DataFrame. Default is `False`.
 
-### convert_todatetime()
+### convert_to_datetime()
 > `pd.DataFrame`
 
-automatically detects and converts date columns:
+automatically detects and converts all date columns:
 
 Supports common date formats:
 
@@ -154,16 +154,21 @@ Supports common date formats:
 - `%Y-%m-%d %H:%M:%S` (e.g., "2023-12-31 23:59:59")
 - `%Y-%m-%dT%H:%M:%S` (ISO format)
 
+If you only want to check specific formats, you can select them manually.
+
 <Code
     code={
     `
-from binaryrain_helper_data_processing import convert_todatetime
+from binaryrain_helper_data_processing import convert_to_datetime
 
 # ....df is a pandas DataFrame
 
 # Convert date columns
 
-df = convert_todatetime(df)
+df = convert_to_datetime(df)
+
+# Format only specific formats:
+df = convert_to_datetime(df, ["%d.%m.%Y"])
 `
 }
 lang="python"
@@ -192,7 +197,7 @@ df = format_datetime_columns(df, datetime_columns=['date_column1', 'date_column2
 
 # Format date columns to in string columns
 
-df = format_datetime_columns(df, datetime_columns=['date_column1', 'date_column2'], datetime_format='%Y-%m-%d', datetime_columns=['string_column1', 'string_column2'])
+df = format_datetime_columns(df, datetime_columns=['date_column1', 'date_column2'], datetime_format='%Y-%m-%d', datetime_string_columns=['string_column1', 'string_column2'])
 `
 }
 lang="python"

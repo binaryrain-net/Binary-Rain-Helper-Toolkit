@@ -1,7 +1,7 @@
 import json
-import os
 
 import azure.functions as func
+from azure.core.credentials import TokenCredential
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from azure.keyvault.secrets import SecretClient
@@ -37,7 +37,7 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
     Read data from a blob storage account.
 
     :param str blob_account:
-        The name of the blob account.
+        The name of the blob account. For example, "https://<account_name>.blob.core.windows.net/"
     :param str container_name:
         The name of the container.
     :param str blob_name:
@@ -193,6 +193,8 @@ def create_adf_pipeline(
     factory_name: str,
     pipeline_name: str,
     parameters: dict | None = None,
+    credentials: DefaultAzureCredential | TokenCredential = DefaultAzureCredential(),
+    adf_base_url: str = "https://management.azure.com",
 ) -> str:
     """
     Create an Azure Data Factory pipeline run.
@@ -208,6 +210,12 @@ def create_adf_pipeline(
     :param dict parameters:
                         The parameters to be passed to the pipeline.
                         Optional.
+    :param DefaultAzureCredential credentials:
+                        The credentials to be used for authentication.
+                        Optional. Defaults to `DefaultAzureCredential()`.
+    :param str adf_base_url:
+                        The base URL of the Azure Data Factory API.
+                        Optional. Defaults to `https://management.azure.com`.
 
     :returns str:
             The run ID of the pipeline run.
@@ -222,8 +230,9 @@ def create_adf_pipeline(
     try:
         # Create a data factory client
         data_factory_client = DataFactoryManagementClient(
-            credential=DefaultAzureCredential(),
-            subscription_id=os.environ.get("AZURE_DATA_FACTORY_SUBSCRIPTION_ID") or "",
+            credential=credentials,
+            subscription_id=subscription_id,
+            base_url=adf_base_url,
         )
     except Exception as e:  # pylint: disable=broad-except
         raise ValueError(f"Error creating DataFactoryManagementClient. Exception: {e}")

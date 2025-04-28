@@ -39,15 +39,15 @@
     file_format_options={'engine': 'pyarrow'})
   ```
 
-- `merge_dataframes()`: provides a simple way to merge multiple DataFrames:
+- `combine_dataframes()`: provides a simple way to combine multiple DataFrames:
 
   ```python
-    from binaryrain_helper_data_processing import merge_dataframes
+    from binaryrain_helper_data_processing import combine_dataframes
 
     # ....df1 and df2 are pandas DataFrames
 
-    # Merge DataFrames
-    merged_df = merge_dataframes(df1, df2, sort=True)
+    # Combine DataFrames
+    combined_df = combine_dataframes(df1, df2, sort=True)
   ```
 
 - `convert_todatetime()`: automatically detects and converts date columns:
