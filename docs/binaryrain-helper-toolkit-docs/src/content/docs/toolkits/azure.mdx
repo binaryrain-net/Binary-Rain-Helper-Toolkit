@@ -44,6 +44,7 @@ To install the package you can use your favorite python package manager:
 ## Key Functions
 
 ### return_http_response()
+
 > `azure.functions.HttpResponse`
 
 handles returning HTTP responses with status codes and messages:
@@ -81,6 +82,7 @@ lang="python"
 - `status_code`: `int` | The status code of the response.
 
 ### read_blob_data()
+
 > `bytes`
 
 provides a simplified way to read data from Azure Blob Storage:
@@ -112,11 +114,12 @@ lang="python"
 
 #### Parameters
 
-- `blob_account`: `str` | The name of the blob account.
+- `blob_account`: `str` | The name of the blob account. For example, "https://<account_name>.blob.core.windows.net/"
 - `container_name`: `str` | The name of the container.
 - `blob_name`: `str` | The name of the blob.
 
 ### upload_blob_data()
+
 > `bool`
 
 handles uploading dataframes to blob storage:
@@ -132,7 +135,7 @@ upload_blob_data(
 blob_account="your_account",
 container_name="your_container",
 blob_name="data.parquet",
-df=your_dataframe
+file_contents=your_data
 )
 
 # Upload with compression options
@@ -141,9 +144,19 @@ upload_blob_data(
 blob_account="your_account",
 container_name="your_container",
 blob_name="data.parquet",
-df=your_dataframe,
+file_contents=your_data,
 file_format_options={'compression': 'snappy'}
 )
+
+# Upload a dataframe
+
+upload_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.csv",
+file_contents=bytes(df.to_csv(sep=";", index=False), encoding="utf-8")
+)
+
 `
 }
 lang="python"
@@ -158,6 +171,7 @@ lang="python"
 - `file_contents`: `bytes` | The file contents to be saved.
 
 ### get_secret_data()
+
 > `dict`
 
 Get secret data from Azure Key Vault:
@@ -180,6 +194,7 @@ lang="python"
 - `secret_name`: `str` | The name of the secret.
 
 ### create_adf_pipeline()
+
 > `str`
 
 Create an Azure Data Factory pipeline run:

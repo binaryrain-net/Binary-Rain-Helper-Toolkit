@@ -37,7 +37,7 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
     Read data from a blob storage account.
 
     :param str blob_account:
-        The name of the blob account.
+        The name of the blob account. For example, "https://<account_name>.blob.core.windows.net/"
     :param str container_name:
         The name of the container.
     :param str blob_name:

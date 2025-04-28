@@ -142,13 +142,13 @@ def from_dataframe_to_type(
     return content
 
 
-def merge_dataframes(
+def combine_dataframes(
     df_one: pd.DataFrame | None,
     df_two: pd.DataFrame | None,
     sort: bool = False,
 ) -> pd.DataFrame:
     """
-    Merge two dataframes.
+    Combine two dataframes.
 
     :param pd.DataFrame df_one:
         The first dataframe.
@@ -175,7 +175,10 @@ def merge_dataframes(
     return df_merged
 
 
-def convert_to_datetime(df: pd.DataFrame) -> pd.DataFrame:
+def convert_to_datetime(
+    df: pd.DataFrame,
+    date_formats: list[str] | None = ["%d.%m.%Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"],
+) -> pd.DataFrame:
     """
     Convert date columns in a dataframe to datetime format.
     Currently supports the following date formats:
@@ -190,9 +193,6 @@ def convert_to_datetime(df: pd.DataFrame) -> pd.DataFrame:
     :returns pd.DataFrame df:
         The dataframe with date columns converted to datetime
     """
-    # Supported date formats
-    date_formats = ["%d.%m.%Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"]
-
     for column in df.columns:
         # Only process object (string) columns
         if df[column].dtype == "object":

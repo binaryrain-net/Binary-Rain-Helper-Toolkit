@@ -1,6 +1,11 @@
 ---
 version: 2
 updates:
+  # update documentation dependencies
+  - package-ecosystem: "npm"
+    directory: "/docs/binaryrain-helper-toolkit-docs"
+    schedule:
+      interval: "monthly"
   # update GH actions
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
