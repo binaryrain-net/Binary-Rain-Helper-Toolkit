@@ -22,8 +22,8 @@ def create_dataframe(
     """
     Create a dataframe from the file contents.
 
-    :param pandas.DataFrame dataframe:
-        The dataframe to be converted.
+    :param bytes | dict file_contents:
+        The contents of the file to be loaded.
     :param FileFormat file_format:
         The format of the file to be loaded. Currently supported: `csv` and `dict`, `parquet`, `json`.
     :param dict | None file_format_options:
@@ -221,10 +221,10 @@ def format_datetime_columns(
         The dataframe to format datetime columns in.
     :param list[str] datetime_columns:
         The columns to format as datetime.
-    :param list[str] datetime_string_columns:
-        The columns to format as datetime strings.
     :param str datetime_format:
         The format to convert the datetime columns to.
+    :param list[str] datetime_string_columns:
+        The columns to format as datetime strings. Optional. If not provided, the same columns as datetime_columns will be used.
 
     :returns pd.DataFrame df:
         The dataframe with datetime columns formatted to the specific format
@@ -294,6 +294,18 @@ def format_numeric_values(
         The dataframe to format numeric values in.
     :param list[str] columns:
         The columns to format as numeric values.
+    :param bool swap_separators:
+        Swap the decimal and thousands separators. Default is False.
+    :param str decimal_separator:
+            The decimal separator to use. Default is `.`.
+    :param str thousands_separator:
+                The thousands separator to use. Default is `,`.
+    :param str old_decimal_separator:
+        The old decimal separator to replace. Default is `,`.
+    :param str old_thousands_separator:
+        The old thousands separator to replace. Default is `.`.
+    :param str temp_separator:
+        The temporary separator to use. Default is `|`.
 
     :returns pd.DataFrame df:
         The dataframe with numeric values formatted
