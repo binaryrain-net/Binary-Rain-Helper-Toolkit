@@ -177,7 +177,12 @@ def combine_dataframes(
 
 def convert_to_datetime(
     df: pd.DataFrame,
-    date_formats: list[str] | None = ["%d.%m.%Y", "%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"],
+    date_formats: list[str] | None = [
+        "%d.%m.%Y",
+        "%Y-%m-%d",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+    ],
 ) -> pd.DataFrame:
     """
     Convert date columns in a dataframe to datetime format.
@@ -212,7 +217,7 @@ def format_datetime_columns(
     df: pd.DataFrame,
     datetime_columns: list[str],
     datetime_format: str,
-    datetime_string_columns: list[str] = None,
+    datetime_string_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """
     Format datetime columns in a dataframe to a specific format
@@ -236,9 +241,9 @@ def format_datetime_columns(
             "The number of datetime columns and datetime string columns must be equal."
         )
     for i in range(len(datetime_columns)):
-        df[datetime_columns[i]] = pd.to_datetime(
-            df[datetime_string_columns[i]]
-        ).strftime(datetime_format)
+        df[datetime_string_columns[i]] = pd.to_datetime(
+            df[datetime_columns[i]]
+        ).dt.strftime(datetime_format)
     return df
 
 
