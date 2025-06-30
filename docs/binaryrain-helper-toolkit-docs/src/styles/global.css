@@ -1,0 +1,25 @@
+@layer base, starlight, theme, components, utilities;
+
+@import "@astrojs/starlight-tailwind";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  /* Your preferred text font. Starlight uses a system font stack by default. */
+  --font-sans: "Atkinson Hyperlegible";
+  /* Your preferred code font. Starlight uses system monospace fonts by default. */
+  --font-mono: "IBM Plex Mono";
+  --color-accent-200: oklch(0.8331 0.0887 139.96);
+  --color-accent-600: oklch(0.4032 0.1299 140.04);
+  --color-accent-900: oklch(0.3187 0.1026 140);
+  --color-accent-950: oklch(0.2602 0.0839 140.08);
+  /* Your preferred gray scale. Zinc is closest to Starlight’s defaults. */
+  --color-gray-100: oklch(0.9726 0.005 165.01);
+  --color-gray-200: oklch(0.9477 0.0108 158.84);
+  --color-gray-300: oklch(0.8139 0.0138 159.84);
+  --color-gray-400: oklch(0.6375 0.0281 161.48);
+  --color-gray-500: oklch(0.46 0.0274 160.8);
+  --color-gray-700: oklch(0.2708 0.0283 160.62);
+  --color-gray-800: oklch(0.2708 0.0283 160.62); /* Highlights */
+  --color-gray-900: oklch(0.2091 0.0131 159.98); /* Background */
+}
