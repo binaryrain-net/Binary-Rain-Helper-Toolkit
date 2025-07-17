@@ -25,7 +25,8 @@ def create_dataframe(
     :param bytes | dict file_contents:
         The contents of the file to be loaded.
     :param FileFormat file_format:
-        The format of the file to be loaded. Currently supported: `csv` and `dict`, `parquet`, `json`.
+        The format of the file to be loaded.
+        Currently supported: `csv` and `dict`, `parquet`, `json`.
     :param dict | None file_format_options:
         The options for the file format. Default is None.
 
@@ -40,23 +41,17 @@ def create_dataframe(
                 if file_format_options is None:
                     dataframe = pd.read_csv(io.BytesIO(file_contents))
                 else:
-                    dataframe = pd.read_csv(
-                        io.BytesIO(file_contents), **file_format_options
-                    )
+                    dataframe = pd.read_csv(io.BytesIO(file_contents), **file_format_options)
 
             case FileFormat.DICT:
                 if file_format_options is None:
                     dataframe = pd.DataFrame.from_dict(file_contents)
                 else:
-                    dataframe = pd.DataFrame.from_dict(
-                        file_contents, **file_format_options
-                    )
+                    dataframe = pd.DataFrame.from_dict(file_contents, **file_format_options)
 
             case FileFormat.PARQUET:
                 if file_format_options is None:
-                    dataframe = pd.read_parquet(
-                        io.BytesIO(file_contents), engine="pyarrow"
-                    )
+                    dataframe = pd.read_parquet(io.BytesIO(file_contents), engine="pyarrow")
                 else:
                     dataframe = pd.read_parquet(
                         io.BytesIO(file_contents),
@@ -68,14 +63,10 @@ def create_dataframe(
                 if file_format_options is None:
                     dataframe = pd.read_json(io.BytesIO(file_contents))
                 else:
-                    dataframe = pd.read_json(
-                        io.BytesIO(file_contents), **file_format_options
-                    )
+                    dataframe = pd.read_json(io.BytesIO(file_contents), **file_format_options)
 
             case _:
-                raise TypeError(
-                    f"Error creating dataframe. Unknown file format: {file_format}"
-                )
+                raise TypeError(f"Error creating dataframe. Unknown file format: {file_format}")
     except Exception as exc:
         raise ValueError(f"Error creating dataframe. Exception: {exc}") from exc
 
@@ -120,9 +111,7 @@ def from_dataframe_to_type(
                 if file_format_options is None:
                     content = dataframe.to_parquet(engine="pyarrow")
                 else:
-                    content = dataframe.to_parquet(
-                        engine="pyarrow", **file_format_options
-                    )
+                    content = dataframe.to_parquet(engine="pyarrow", **file_format_options)
 
             case FileFormat.JSON:
                 if file_format_options is None:
@@ -131,9 +120,7 @@ def from_dataframe_to_type(
                     content = dataframe.to_json(**file_format_options)
 
             case _:
-                raise TypeError(
-                    f"Error converting dataframe. Unknown file format: {file_format}"
-                )
+                raise TypeError(f"Error converting dataframe. Unknown file format: {file_format}")
     except Exception as exc:
         raise ValueError(
             f"Error converting dataframe. See logs for more details. Exception: {exc}"
@@ -169,7 +156,8 @@ def combine_dataframes(
             raise ValueError(f"Error merging dataframes. Exception: {exc}") from exc
     else:
         raise ValueError(
-            f"No dataframe provided for df_one - got {type(df_one)} and/or df_two - got {type(df_two)}."
+            f"No dataframe provided for df_one - got {type(df_one)} "
+            f"and/or df_two - got {type(df_two)}."
         )
 
     return df_merged
@@ -204,9 +192,7 @@ def convert_to_datetime(
             # Try each date format. If conversion succeeds, break the loop
             for date_format in date_formats:
                 try:
-                    df[column] = pd.to_datetime(
-                        df[column], format=date_format, errors="coerce"
-                    )
+                    df[column] = pd.to_datetime(df[column], format=date_format, errors="coerce")
                     break  # Exit the loop if conversion succeeds
                 except (ValueError, TypeError):
                     continue
@@ -229,7 +215,8 @@ def format_datetime_columns(
     :param str datetime_format:
         The format to convert the datetime columns to.
     :param list[str] datetime_string_columns:
-        The columns to format as datetime strings. Optional. If not provided, the same columns as datetime_columns will be used.
+        The columns to format as datetime strings. Optional.
+        If not provided, the same columns as datetime_columns will be used.
 
     :returns pd.DataFrame df:
         The dataframe with datetime columns formatted to the specific format
@@ -241,9 +228,9 @@ def format_datetime_columns(
             "The number of datetime columns and datetime string columns must be equal."
         )
     for i in range(len(datetime_columns)):
-        df[datetime_string_columns[i]] = pd.to_datetime(
-            df[datetime_columns[i]]
-        ).dt.strftime(datetime_format)
+        df[datetime_string_columns[i]] = pd.to_datetime(df[datetime_columns[i]]).dt.strftime(
+            datetime_format
+        )
     return df
 
 
@@ -257,12 +244,12 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     :returns pd.DataFrame df:
         The cleaned dataframe
     """
-    df = df.replace("nan", pd.NA)
-    df = df.replace("", pd.NA)
-    df = df.dropna()
-    df = df.drop_duplicates()
-    df = df.reset_index(drop=True)
-    return df
+    prepared_df = df.replace("nan", pd.NA)
+    prepared_df = prepared_df.replace("", pd.NA)
+    prepared_df = prepared_df.dropna()
+    prepared_df = prepared_df.drop_duplicates()
+    prepared_df = prepared_df.reset_index(drop=True)
+    return prepared_df
 
 
 def remove_empty_values(df: pd.DataFrame, filter_column: str) -> pd.DataFrame:
@@ -277,9 +264,7 @@ def remove_empty_values(df: pd.DataFrame, filter_column: str) -> pd.DataFrame:
     :returns pd.DataFrame df:
         The dataframe with empty values removed.
     """
-    return df[df[filter_column].notnull() & df[filter_column] != ""].reset_index(
-        drop=True
-    )
+    return df[df[filter_column].notna() & df[filter_column] != ""].reset_index(drop=True)
 
 
 def format_numeric_values(
@@ -293,7 +278,9 @@ def format_numeric_values(
     temp_separator: str = "|",
 ) -> pd.DataFrame:
     """
-    Format numeric values in a dataframe. Additionally it swaps the decimal and thousands separators. This is useful when the data is read from a file with a different locale.
+    Format numeric values in a dataframe.
+    Additionally it swaps the decimal and thousands separators.
+    This is useful when the data is read from a file with a different locale.
 
     :param pd.DataFrame df:
         The dataframe to format numeric values in.

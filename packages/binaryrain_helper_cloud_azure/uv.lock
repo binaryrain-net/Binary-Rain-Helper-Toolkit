@@ -108,7 +108,7 @@ wheels = [
 
 [[package]]
 name = "binaryrain-helper-cloud-azure"
-version = "0.0.5"
+version = "0.0.7"
 source = { editable = "." }
 dependencies = [
     { name = "azure-functions" },
