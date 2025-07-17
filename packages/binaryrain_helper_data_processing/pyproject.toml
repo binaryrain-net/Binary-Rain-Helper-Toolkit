@@ -1,13 +1,20 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "0.0.11"
+version = "0.0.12"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.10"
 dependencies = ["pandas>=2.2.3"]
 
-keywords = ["binary rain", "common", "help", "functions", "data processing", "dataframe"]
+keywords = [
+    "binary rain",
+    "common",
+    "help",
+    "functions",
+    "data processing",
+    "dataframe",
+]
 
 classifiers = [
     "Programming Language :: Python",
@@ -24,3 +31,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["binaryrain_helper_data_processing"]
 package-dir = { "" = "src" }
+
+[tool.ruff]
+# Extend the settings from the ruff.toml file.
+extend = "../../ruff.toml"

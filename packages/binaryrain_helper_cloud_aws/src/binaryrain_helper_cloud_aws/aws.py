@@ -48,7 +48,8 @@ def get_app_config(
     :returns dict:
         Configuration data as a dictionary.
     :raises ValueError:
-        If any of the parameters are not provided or if there is an error retrieving the configuration.
+        If any of the parameters are not provided or
+        if there is an error retrieving the configuration.
     """
 
     # validate input parameters
@@ -99,9 +100,7 @@ def load_file_from_s3(filename: str, s3_bucket: str) -> bytes:
         s3_client = boto3.client("s3")
         file_obj = s3_client.get_object(Bucket=s3_bucket, Key=filename)
     except ClientError as exc:
-        raise ValueError(
-            f"Could not load file {filename} from S3. Exception: {exc}"
-        ) from exc
+        raise ValueError(f"Could not load file {filename} from S3. Exception: {exc}") from exc
 
     return file_obj["Body"].read()
 
@@ -130,7 +129,8 @@ def save_file_to_s3(
     :returns bool:
         Indicates whether the file got saved successfully, otherwise false.
     :raises ValueError:
-        If the filename, S3 bucket, or file contents are not provided or if there is an error saving the file.
+        If the filename, S3 bucket, or file contents are not provided or
+        if there is an error saving the file.
     """
 
     # validate input parameters
@@ -138,20 +138,14 @@ def save_file_to_s3(
         raise ValueError("No filename provided.")
     if not s3_bucket:
         raise ValueError("No S3 bucket provided.")
-    if (
-        not file_contents
-        or not isinstance(file_contents, bytes)
-        or len(file_contents) == 0
-    ):
+    if not file_contents or not isinstance(file_contents, bytes) or len(file_contents) == 0:
         raise ValueError(
             "No file contents provided or file contents are empty or not of type bytes."
         )
 
     # if server side encryption is provided, make sure the KMS key ID is also provided
     if server_side_encryption and not sse_kms_key_id:
-        raise ValueError(
-            "SSE requested, but no KMS key ID provided for server side encryption."
-        )
+        raise ValueError("SSE requested, but no KMS key ID provided for server side encryption.")
 
     try:
         s3_client = boto3.client("s3")
@@ -176,9 +170,7 @@ def save_file_to_s3(
     return True
 
 
-def get_s3_presigned_url_readonly(
-    filename: str, s3_bucket: str, expires_in: int = 120
-) -> str:
+def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int = 120) -> str:
     """
     Get a presigned URL for a file in S3.
 
@@ -192,7 +184,8 @@ def get_s3_presigned_url_readonly(
     :returns str:
         Presigned URL for the file in S3.
     :raises ValueError:
-        If the filename or S3 bucket is not provided or if there is an error generating the presigned URL.
+        If the filename or S3 bucket is not provided or
+        if there is an error generating the presigned URL.
     """
 
     # validate input parameters
