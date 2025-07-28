@@ -1,0 +1,179 @@
+---
+title: Cloud Dataverse
+description: Simplify Dataverse interactions
+---
+
+import { Code, Tabs, TabItem, LinkButton } from "@astrojs/starlight/components";
+
+<div style="display: flex; gap: 10px; margin-top: 0">
+  <a
+    href="https://pypi.org/project/binaryrain-helper-cloud-dataverse/"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/pypi/v/binaryrain-helper-cloud-dataverse?style=for-the-badge&color=%23aad7a0&link=https%3A%2F%2Fpypi.org%2Fproject%2Fbinaryrain-helper-cloud-dataverse%2F&logo=pypi&logoColor=%23aad7a0"
+      alt="PyPI Version"
+    />
+  </a>
+  <a
+    href="https://github.com/binaryrain-net/Binary-Rain-Helper-Toolkit/tree/main/packages/binaryrain_helper_cloud_dataverse"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/badge/Visit-Github-%23aad7a0?style=for-the-badge&logo=github&logoColor=%23aad7a0"
+      alt="Github"
+    />
+  </a>
+</div>
+
+`binaryrain_helper_cloud_dataverse` is a python package that aims to simplify and help with connecting to and using Microsoft Dataverse. It handles common operations like retrieving, creating, updating, and deleting records in a Dataverse environment. With the help of sessions it maintains a consistent connection to the Dataverse API, ensuring efficient and reliable data operations without the need for repetitive code when pagination is required.
+
+## Installation
+
+To install the package you can use your favorite python package manager:
+
+<Tabs>
+  <TabItem label="PIP">
+    <Code code={`pip install binaryrain-helper-cloud-dataverse`} lang="bash" />
+  </TabItem>
+  <TabItem label="UV">
+    <Code code={`uv add binaryrain-helper-cloud-dataverse`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+## Key Functions
+
+### DataverseAPIHandler()
+an API handler that makes interaction with Dataverse tables easier.
+
+<Code
+    code={
+    `
+from binaryrain_helper_cloud_dataverse.dataverse import DataverseAPIHandler
+
+api_handler = DataverseAPIHandler(
+    base_url="<your-service-uri>", # something like: xxxxx.crm4.dynamics.com
+    access_token="<your_access_token"
+)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+- `base_url`: `str` | The url of the dataverse service
+- `access_token`: `str` | The access token for your dataverse service
+
+### get()
+Retrieve records from a Dataverse table with automatic pagination handling.
+
+<Code
+    code={
+    `
+# Get all contacts
+contacts = api_handler.get("contacts")
+
+# Get contacts with specific query parameters
+filtered_contacts = api_handler.get(
+    "contacts",
+    params={
+        "$select": "fullname,emailaddress1",
+        "$filter": "statecode eq 0"
+    }
+)
+
+# Get with custom timeout
+accounts = api_handler.get("accounts", timeout=120)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+- `endpoint`: `str` | The API endpoint (e.g., 'contacts', 'accounts')
+- `timeout`: `int` | Request timeout in seconds. Default is 60 seconds
+- `params`: `dict | None` | Query parameters to include in the request (optional)
+- `**kwargs` | Additional arguments to pass to requests.get()
+
+#### Returns:
+- `list[dict]` | A list of records retrieved from the Dataverse API
+
+#### Raises:
+- `requests.RequestException` | If the request fails
+
+### post()
+Create a new record in a Dataverse table.
+
+<Code
+    code={
+    `
+# Create a new contact
+contact_data = {
+    "firstname": "John",
+    "lastname": "Doe",
+    "emailaddress1": "john.doe@example.com"
+}
+contact_id = api_handler.post("contacts", contact_data)
+
+# Create a new account with custom timeout
+account_data = {
+    "name": "Acme Corporation",
+    "websiteurl": "https://acme.com"
+}
+account_id = api_handler.post("accounts", account_data, timeout=90)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+- `endpoint`: `str` | The API endpoint (e.g., 'contacts', 'accounts')
+- `data`: `dict` | The JSON data to send in the request body
+- `timeout`: `int` | Request timeout in seconds. Default is 60 seconds
+- `**kwargs` | Additional arguments to pass to requests.post()
+
+#### Returns:
+- `str | None` | The created record ID or None if creation failed
+
+#### Raises:
+- `requests.RequestException` | If the request fails
+- `ValueError` | If data is None
+
+### delete()
+Delete a record from a Dataverse table.
+
+<Code
+    code={
+    `
+# Delete a contact by ID
+contact_id = "12345678-1234-1234-1234-123456789012"
+success = api_handler.delete("contacts", contact_id)
+
+if success:
+    print("Contact deleted successfully")
+else:
+    print("Failed to delete contact")
+
+# Delete with custom timeout
+account_id = "87654321-4321-4321-4321-210987654321"
+success = api_handler.delete("accounts", account_id, timeout=30)
+`
+}
+lang="python"
+
+/>
+
+#### Parameters:
+- `endpoint`: `str` | The API endpoint (e.g., 'contacts', 'accounts')
+- `record_id`: `str` | The GUID of the record to delete
+- `timeout`: `int` | Request timeout in seconds. Default is 60 seconds
+- `**kwargs` | Additional arguments to pass to requests.delete()
+
+#### Returns:
+- `bool` | True if deletion was successful, False otherwise
+
+#### Raises:
+- `requests.RequestException` | If the request fails

@@ -61,7 +61,7 @@ simplifies creating pandas DataFrames from various formats:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import FileFormat, create_dataframe
+from binaryrain_helper_data_processing.dataframe import FileFormat, create_dataframe
 
 # Create from CSV bytes
 
@@ -91,7 +91,7 @@ handles converting DataFrames to different formats:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import FileFormat, convert_dataframe_to_type
+from binaryrain_helper_data_processing.dataframe import FileFormat, convert_dataframe_to_type
 
 # ....df is a pandas DataFrame
 
@@ -123,7 +123,7 @@ provides a simple way to combine multiple DataFrames:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import combine_dataframes
+from binaryrain_helper_data_processing.dataframe import combine_dataframes
 
 # ....df1 and df2 are pandas DataFrames
 
@@ -159,7 +159,7 @@ If you only want to check specific formats, you can select them manually.
 <Code
     code={
     `
-from binaryrain_helper_data_processing import convert_to_datetime
+from binaryrain_helper_data_processing.dataframe import convert_to_datetime
 
 # ....df is a pandas DataFrame
 
@@ -187,7 +187,7 @@ formats specific datetime columns:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import format_datetime_columns
+from binaryrain_helper_data_processing.dataframe import format_datetime_columns
 
 # ....df is a pandas DataFrame
 
@@ -218,7 +218,7 @@ cleans DataFrames by removing duplicates and missing values:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import clean_dataframe
+from binaryrain_helper_data_processing.dataframe import clean_dataframe
 
 # ....df is a pandas DataFrame
 
@@ -242,7 +242,7 @@ filters out empty values from specific columns:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import remove_empty_values
+from binaryrain_helper_data_processing.dataframe import remove_empty_values
 
 # ....df is a pandas DataFrame
 
@@ -267,7 +267,7 @@ handles locale-specific number formatting:
 <Code
     code={
     `
-from binaryrain_helper_data_processing import format_numeric_values
+from binaryrain_helper_data_processing.dataframe import format_numeric_values
 
 # ....df is a pandas DataFrame
 
