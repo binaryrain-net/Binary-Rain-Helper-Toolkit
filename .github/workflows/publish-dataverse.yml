@@ -1,11 +1,10 @@
 ---
-name: Publish Toolkit - AZURE
+name: Publish Toolkit - DATAVERSE
 
 "on":
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-dataverse.yml
       - packages/binaryrain_helper_cloud_dataverse/**
 
 env:

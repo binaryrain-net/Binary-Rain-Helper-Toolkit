@@ -5,7 +5,6 @@ name: Publish Toolkit - AZURE
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-azure.yml
       - packages/binaryrain_helper_cloud_azure/**
 
 env:

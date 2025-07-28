@@ -5,7 +5,6 @@ name: Publish Toolkit - DATAFRAME
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-dataframe.yml
       - packages/binaryrain_helper_data_processing/**
 
 env:

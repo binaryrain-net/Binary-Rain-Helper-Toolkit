@@ -5,7 +5,6 @@ name: Publish Toolkit - AWS
   push:
     branches: [main]
     paths:
-      - .github/workflows/publish-aws.yml
       - packages/binaryrain_helper_cloud_aws/**
 
 env:
