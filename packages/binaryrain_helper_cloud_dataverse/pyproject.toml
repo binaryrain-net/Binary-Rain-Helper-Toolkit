@@ -1,0 +1,32 @@
+[project]
+name = "binaryrain-helper-cloud-dataverse"
+version = "0.0.1"
+description = "Aims to simplify and help with connecting to and using Microsoft Dataverse."
+readme = "README.md"
+authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.32.4",
+]
+
+keywords = ["binary rain", "common", "help", "functions", "azure"]
+
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://binaryrain-net.github.io/Binary-Rain-Helper-Toolkit/"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["binaryrain_helper_cloud_dataverse"]
+package-dir = { "" = "src" }
+
+[tool.ruff]
+# Extend the settings from the ruff.toml file.
+extend = "../../ruff.toml"

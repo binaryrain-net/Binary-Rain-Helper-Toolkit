@@ -52,7 +52,7 @@ handles returning HTTP responses with status codes and messages:
 <Code
     code={
     `
-from binaryrain_helper_cloud_azure import return_http_response
+from binaryrain_helper_cloud_azure.azure import return_http_response
 import json
 
 # Return a 200 OK response
@@ -90,7 +90,7 @@ provides a simplified way to read data from Azure Blob Storage:
 <Code
     code={
 `
-from binaryrain_helper_cloud_azure import read_blob_data
+from binaryrain_helper_cloud_azure.azure import read_blob_data
 
 # Read a Parquet file from blob storage
 
@@ -127,7 +127,7 @@ handles uploading dataframes to blob storage:
 <Code
     code={
 `
-from binaryrain_helper_cloud_azure import upload_blob_data
+from binaryrain_helper_cloud_azure.azure import upload_blob_data
 
 # Upload dataframe as Parquet
 
@@ -179,7 +179,7 @@ Get secret data from Azure Key Vault:
 <Code
     code={
 `
-from binaryrain_helper_cloud_azure import get_secret_data
+from binaryrain_helper_cloud_azure.azure import get_secret_data
 
 secret = get_secret_data("your_keyvault_url", "your_secret_name")
 `
@@ -202,7 +202,7 @@ Create an Azure Data Factory pipeline run:
 <Code
     code={
 `
-from binaryrain_helper_cloud_azure import create_adf_pipeline
+from binaryrain_helper_cloud_azure.azure import create_adf_pipeline
 
 # Create a data factory run
 
