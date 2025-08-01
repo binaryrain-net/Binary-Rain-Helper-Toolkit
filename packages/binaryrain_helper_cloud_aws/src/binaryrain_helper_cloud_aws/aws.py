@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 from aws_lambda_powertools.utilities import parameters
 
 
@@ -213,6 +214,6 @@ def move_file_in_s3(
         # delete the original object
         s3_client.delete_object(Bucket=source_bucket, Key=source_filename)
         return True
-    except Exception:
-        # Optionally log the exception here
-        return False
+    except ClientError:
+        # exception will be handled by the caller
+        raise
