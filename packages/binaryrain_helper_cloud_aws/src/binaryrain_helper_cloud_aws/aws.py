@@ -169,3 +169,50 @@ def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int
 
     # return the presigned URL
     return presigned_url
+
+
+def move_file_in_s3(
+    source_bucket: str, source_filename: str, destination_filename: str, destination_bucket: str
+) -> bool:
+    """
+    Move a file within S3 by copying and deleting the original.
+
+    :param str source_bucket:
+        Name of the S3 bucket where the source file is stored.
+    :param str source_filename:
+        Name of the source file in S3.
+    :param str destination_filename:
+        Name of the destination file in S3.
+    :param str destination_bucket:
+        Name of the S3 bucket where the destination file will be stored.
+
+    :returns bool:
+        Indicates whether the file got moved successfully, otherwise false.
+    """
+
+    # validate input parameters
+    if not source_bucket:
+        raise ValueError("No source bucket provided.")
+    if not source_filename:
+        raise ValueError("No source filename provided.")
+    if not destination_filename:
+        raise ValueError("No destination filename provided.")
+    if not destination_bucket:
+        raise ValueError("No destination bucket provided.")
+
+    s3_client = boto3.client("s3")
+
+    try:
+        # copy the object to the new location
+        s3_client.copy_object(
+            CopySource={"Bucket": source_bucket, "Key": source_filename},
+            Bucket=destination_bucket,
+            Key=destination_filename,
+        )
+
+        # delete the original object
+        s3_client.delete_object(Bucket=source_bucket, Key=source_filename)
+        return True
+    except Exception:
+        # Optionally log the exception here
+        return False
