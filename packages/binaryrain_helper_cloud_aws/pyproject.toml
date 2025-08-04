@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-helper-cloud-aws"
-version = "0.0.7"
+version = "0.0.8"
 description = "Aims to simplify and help with commonly used functions in the aws cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
