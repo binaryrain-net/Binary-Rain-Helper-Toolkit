@@ -203,17 +203,17 @@ def move_file_in_s3(
 
     s3_client = boto3.client("s3")
 
-    try:
-        # copy the object to the new location
-        s3_client.copy_object(
-            CopySource={"Bucket": source_bucket, "Key": source_filename},
-            Bucket=destination_bucket,
-            Key=destination_filename,
-        )
+    # copy the object to the new location
+    s3_client.copy_object(
+        CopySource={"Bucket": source_bucket, "Key": source_filename},
+        Bucket=destination_bucket,
+        Key=destination_filename,
+    )
 
-        # delete the original object
-        s3_client.delete_object(Bucket=source_bucket, Key=source_filename)
-        return True
-    except ClientError:
-        # exception will be handled by the caller
-        raise
+    # delete the original object
+    s3_client.delete_object(Bucket=source_bucket, Key=source_filename)
+
+    # return true if the operation was successful
+    # exception handling will be done by the caller
+    # in order to provide more context on the error
+    return True
