@@ -155,14 +155,15 @@ You can use an azure function also to send static html files as a response. This
 An important note when using fastapi is to adjust the hosting settings. Since fastapi uses a different routing prefix config as azure function, you have to configure the host settings and add the following:
 
 <Code
-  code={
-`{
+  code={`{
+    ...
     "extensions": {
         "http": {
             "routePrefix": ""
         }
     }
+    ...
 }
-  }
+`}
 lang="json"
 />
