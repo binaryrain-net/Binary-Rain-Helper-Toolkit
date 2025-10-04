@@ -5,7 +5,6 @@ description: A template for creating Azure Functions projects
 
 import { Code, Tabs, TabItem } from "@astrojs/starlight/components";
 
-
 <div style="display: flex; gap: 10px; margin-top: 0">
   <a
     href="https://github.com/binaryrain-net/Azure-Functions-Template"
@@ -48,17 +47,11 @@ In order to start a virtual environment it is important to install the python mo
 
 With the following command you can create a virtual env in the current directory:
 
-<Code
-  code={`python -m venv .venv`}
-  lang="bash"
-/>
+<Code code={`python -m venv .venv`} lang="bash" />
 
 To activate the virtual env you have to run one of the activation applications inside the terminal. For PowerShell use the following command:
 
-<Code
-  code={`PS C:\\> <venv>\\Scripts\\Activate.ps1`}
-  lang="bash"
-/>
+<Code code={`PS C:\\> <venv>\\Scripts\\Activate.ps1`} lang="bash" />
 
 ### Install Dependencies and Run Locally
 
@@ -67,8 +60,9 @@ To activate the virtual env you have to run one of the activation applications i
 pip install -r ./requirements.txt
 
 # Start the local azure function
+
 func host start`}
-  lang="bash"
+lang="bash"
 />
 
 > If the function does not return an exception you should see the localhost:// paths that are now active.
@@ -80,23 +74,29 @@ func host start`}
 az login
 
 # Create a resource group
+
 az group create --name <RESOURCEGROUPNAME> --location <LOCATION>
 
 # Create a storage account
+
 az storage account create --name <STORAGEACCOUNTNAME> --location <LOCATION> --resource-group <RESOURCEGROUPNAME> --sku Standard_LRS
 
 # Create a functionapp
+
 az functionapp create --resource-group <RESOURCEGROUPNAME> --consumption-plan-location <LOCATION> --runtime <RUNTIME> --functions-version 3 --name <FUNCTIONAPPNAME> --storage-account <STORAGEACCOUNTNAME> --os-type Linux
 
 # To download remote application settings
+
 func azure functionapp fetch-app-settings <FUNCTIONAPPNAME>
 
 # To deploy your created function
+
 func azure functionapp publish <FUNCTIONAPPNAME>
 
 # To deploy your created function inside a specific deployment slot
+
 func azure functionapp publish <FUNCTIONAPPNAME> --slot <SLOTNAME>`}
-  lang="bash"
+lang="bash"
 />
 
 ## Deployment with Github Actions
@@ -125,3 +125,44 @@ The downside though: some usual helpful features and properties are not (or not 
 This repository contains an exemplary workflow file (`./.github/workflows/azure-functions.yml`) that is set up for the flex consumption plan. If you want to use it, make sure that you remove the `.example` at the end of the yml extension and replace the current workflow.
 
 > Keep in mind that when you are using the flex consumption plan, setting up a connectionstring and app settings for the function app contain specific presets (for example: AzureWebJobs….)
+
+## User Authentication Information
+
+If you want to secure your azure function so that only authorized people are allowed to access, then there are a few important settings.
+
+First you have to follow the documentation instructions regarding [Authentication and authorization in Azure App Service and Azure Functions](https://learn.microsoft.com/en-us/azure/app-service/overview-authentication-authorization).
+
+Once completed, the function app is only accessible for authorized users (depending on your configurations). But how to get the information about the signed in user? In the following example the goal is to extract the name of the user and the object identifier, which is often used for further graph api requests. An easy way to see all auth data and claims, go to your azure function and add `/.auth/me`. For further information about the principal information, see [here](https://learn.microsoft.com/en-us/azure/app-service/configure-authentication-user-identities).
+
+<Code
+  code={`principal_header = request.headers.get("x-ms-client-principal")
+
+decoded = base64.b64decode(principal_header).decode("utf-8")
+principal = json.loads(decoded)
+claims = principal.get("claims", [])
+
+oid = next((c["val"] for c in claims if c["typ"].endswith("objectidentifier")), None)
+name = next((c["val"] for c in claims if c["typ"] == "name"), None)
+
+return str(oid), str(name)`}
+lang="python"
+/>
+
+## FastAPI and Static Frontend
+
+You can use an azure function also to send static html files as a response. This allows you to combine frontend and backend as a kind of fullstack endpoint. Click [here](https://github.com/binaryrain-net/Azure-Functions-Template/tree/main/Azure%20Functions/DemoFastApiReact), to visit the Azure Function Template repository example. It showcases an example on how to host react frontend and fastapi backend in an azure function.
+
+An important note when using fastapi is to adjust the hosting settings. Since fastapi uses a different routing prefix config as azure function, you have to configure the host settings and add the following:
+
+<Code
+  code={
+`{
+    "extensions": {
+        "http": {
+            "routePrefix": ""
+        }
+    }
+}
+  }
+lang="json"
+/>
