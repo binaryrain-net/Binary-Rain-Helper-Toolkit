@@ -1,28 +1,38 @@
 ---
 version: 2
 updates:
-  # update documentation dependencies
-  - package-ecosystem: "npm"
-    directory: "/docs/binaryrain-helper-toolkit-docs"
-    schedule:
-      interval: "monthly"
   # update GH actions
   - package-ecosystem: "github-actions"
     directory: "/.github/workflows"
     schedule:
       interval: "weekly"
+
+  # update documentation dependencies
+  - package-ecosystem: "npm"
+    directory: "/docs/binaryrain-helper-toolkit-docs"
+    schedule:
+      interval: "weekly"
+
   # update python packages for aws helper
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "packages/binaryrain_helper_cloud_aws"
     schedule:
       interval: "weekly"
-  # update python packages for aws helper
-  - package-ecosystem: "pip"
+
+  # update python packages for azure helper
+  - package-ecosystem: "uv"
     directory: "packages/binaryrain_helper_cloud_azure"
     schedule:
       interval: "weekly"
-  # update python packages for aws helper
-  - package-ecosystem: "pip"
+
+  # update python packages for dataverse helper
+  - package-ecosystem: "uv"
+    directory: "packages/binaryrain_helper_cloud_dataverse"
+    schedule:
+      interval: "weekly"
+
+  # update python packages for data processing helper
+  - package-ecosystem: "uv"
     directory: "packages/binaryrain_helper_data_processing"
     schedule:
       interval: "weekly"

@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d
 
       - name: Check Ruff
         working-directory: ${{ env.WORKING_DIRECTORY }}
