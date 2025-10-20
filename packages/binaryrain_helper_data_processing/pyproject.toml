@@ -1,11 +1,16 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "0.0.12"
+version = "0.1.1"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.10"
-dependencies = ["pandas>=2.2.3"]
+dependencies = [
+    "pandas>=2.3.3",
+    "pyarrow>=21.0.0",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]
 
 keywords = [
     "binary rain",
@@ -35,3 +40,9 @@ package-dir = { "" = "src" }
 [tool.ruff]
 # Extend the settings from the ruff.toml file.
 extend = "../../ruff.toml"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore:Could not infer format, so each element will be parsed individually, falling back to `dateutil`.:UserWarning",
+]
