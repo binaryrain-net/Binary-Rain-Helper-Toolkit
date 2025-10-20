@@ -1,9 +1,8 @@
 ---
-name: Publish Toolkit - DATAFRAME
+name: Test Toolkit - DATAFRAME
 
 "on":
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - packages/binaryrain_helper_data_processing/**
 
@@ -22,6 +21,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@3259c6206f993105e3a61b142c2d97bf4b9ef83d
 
+      - name: Format Ruff
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: uvx ruff format .
+
       - name: Check Ruff
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: uvx ruff check .
@@ -33,11 +36,3 @@ jobs:
       - name: Run tests with coverage
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: uv run pytest ./src/tests/ --cov ./src/binaryrain_helper_data_processing/ --cov-fail-under=85
-
-      - name: Build the package
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: uv build --package ${{ env.PACKAGE_NAME }} --no-sources
-
-      - name: Publish the package
-        working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: uv publish --token ${{ secrets.PYPI_TOKEN }}
