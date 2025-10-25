@@ -107,6 +107,18 @@ blob_account="your_account",
 container_name="your_container",
 blob_name="data.csv",
 )
+
+# Read with a custom BlobServiceClient
+
+from azure.storage.blob import BlobServiceClient
+
+custom_client = BlobServiceClient(account_url="https://your_account.blob.core.windows.net/")
+df = read_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.csv",
+blob_service_client=custom_client
+)
 `
 }
 lang="python"
@@ -117,12 +129,13 @@ lang="python"
 - `blob_account`: `str` | The name of the blob account. For example, "https://YOUR-ACCOUNT.blob.core.windows.net/"
 - `container_name`: `str` | The name of the container.
 - `blob_name`: `str` | The name of the blob.
+- `blob_service_client`: `BlobServiceClient | None` | (Optional) An optional BlobServiceClient instance. If not provided, a new one will be created.
 
 ### upload_blob_data()
 
 > `bool`
 
-handles uploading dataframes to blob storage:
+handles uploading data to blob storage:
 
 <Code
     code={
@@ -138,23 +151,26 @@ blob_name="data.parquet",
 file_contents=your_data
 )
 
-# Upload with compression options
-
-upload_blob_data(
-blob_account="your_account",
-container_name="your_container",
-blob_name="data.parquet",
-file_contents=your_data,
-file_format_options={'compression': 'snappy'}
-)
-
-# Upload a dataframe
+# Upload a dataframe as CSV
 
 upload_blob_data(
 blob_account="your_account",
 container_name="your_container",
 blob_name="data.csv",
 file_contents=bytes(df.to_csv(sep=";", index=False), encoding="utf-8")
+)
+
+# Upload with a custom BlobServiceClient
+
+from azure.storage.blob import BlobServiceClient
+
+custom_client = BlobServiceClient(account_url="https://your_account.blob.core.windows.net/")
+upload_blob_data(
+blob_account="your_account",
+container_name="your_container",
+blob_name="data.parquet",
+file_contents=your_data,
+blob_service_client=custom_client
 )
 
 `
@@ -169,6 +185,7 @@ lang="python"
 - `container_name`: `str` | The name of the container.
 - `blob_name`: `str` | The name of the blob.
 - `file_contents`: `bytes` | The file contents to be saved.
+- `blob_service_client`: `BlobServiceClient | None` | (Optional) An optional BlobServiceClient instance. If not provided, a new one will be created.
 
 ### get_secret_data()
 
@@ -204,7 +221,7 @@ Create an Azure Data Factory pipeline run:
 `
 from binaryrain_helper_cloud_azure.azure import create_adf_pipeline
 
-# Create a data factory run
+# Create a data factory run with parameters
 
 params_json = {"param1": "value1"}
 pipeline_id = create_adf_pipeline(
@@ -213,6 +230,19 @@ resource_group_name="your_resource_group_name",
 factory_name="your_adf_name",
 pipeline_name="your_pipeline_name",
 parameters=params_json,
+)
+
+# Create a data factory run with custom credentials
+
+from azure.identity import DefaultAzureCredential
+
+custom_credentials = DefaultAzureCredential()
+pipeline_id = create_adf_pipeline(
+subscription_id="your_subscription_id",
+resource_group_name="your_resource_group_name",
+factory_name="your_adf_name",
+pipeline_name="your_pipeline_name",
+credentials=custom_credentials,
 )
 `
 }
@@ -226,5 +256,62 @@ lang="python"
 - `factory_name`: `str` | The name of the Data Factory.
 - `pipeline_name`: `str` | The name of the pipeline.
 - `parameters`: `dict | None` | (Optional) The parameters to be passed to the pipeline.
-- `credentials`: `DefaultAzureCredential | TokenCredential` | (Optional) The credentials to be used for authentication. Defaults to `DefaultAzureCredential()`
+- `credentials`: `DefaultAzureCredential | TokenCredential | None` | (Optional) The credentials to be used for authentication. Defaults to `None`, which will create a new `DefaultAzureCredential()` instance.
 - `adf_base_url`: `str` | (Optional) The base URL of the Azure Data Factory Management API. Defaults to `https://management.azure.com`
+
+### list_blob_names_in_container()
+
+> `list[str]`
+
+List all blob names in a container with optional filtering:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_azure.azure import list_blob_names_in_container
+
+# List all blobs in a container
+
+blob_names = list_blob_names_in_container(
+blob_storage_account="https://your_account.blob.core.windows.net/",
+container_name="your_container"
+)
+
+# List blobs with a prefix filter
+
+blob_names = list_blob_names_in_container(
+blob_storage_account="https://your_account.blob.core.windows.net/",
+container_name="your_container",
+starts_with="logs/2024/"
+)
+
+# List blobs with include options
+
+blob_names = list_blob_names_in_container(
+blob_storage_account="https://your_account.blob.core.windows.net/",
+container_name="your_container",
+include=["metadata", "snapshots"]
+)
+
+# List blobs with a custom BlobServiceClient
+
+from azure.storage.blob import BlobServiceClient
+
+custom_client = BlobServiceClient(account_url="https://your_account.blob.core.windows.net/")
+blob_names = list_blob_names_in_container(
+blob_storage_account="https://your_account.blob.core.windows.net/",
+container_name="your_container",
+blob_service_client=custom_client
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `blob_storage_account`: `str` | The name of the blob storage account.
+- `container_name`: `str` | The name of the container.
+- `blob_service_client`: `BlobServiceClient | None` | (Optional) An optional BlobServiceClient instance. If not provided, a new one will be created.
+- `starts_with`: `str | None` | (Optional) Filter blobs whose names begin with the specified prefix.
+- `include`: `str | list[str] | None` | (Optional) Specify one or more additional datasets to include in the response (e.g., "metadata", "snapshots", "deleted").

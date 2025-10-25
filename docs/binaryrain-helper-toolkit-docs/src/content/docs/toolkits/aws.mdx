@@ -44,6 +44,7 @@ To install the package you can use your favorite python package manager:
 ## Key Functions
 
 ### get_secret_data()
+
 > `dict`
 
 retrieves secrets from AWS Secrets Manager:
@@ -70,6 +71,7 @@ lang="python"
 - `secret_name`: `str` | Name of the secret to retreive
 
 ### get_app_config()
+
 > `dict`
 
 simplifies working with AWS AppConfig:
@@ -102,6 +104,7 @@ lang="python"
 - `AppConfig_profile`: `str` | The name of the AppConfig profile
 
 ### load_file_from_s3()
+
 > `bytes`
 
 provides a simple way to read data from S3:
@@ -132,6 +135,7 @@ lang="python"
 - `s3_bucket`: `str` | The name of the S3 bucket where the file is stored.
 
 ### save_file_to_s3()
+
 > `bool`
 
 handles uploading files to S3 with optional encryption:
@@ -172,6 +176,7 @@ lang="python"
 - `sse_kms_key_id`: `str = None` | (Optional) The KMS Key ID for server side encryption.
 
 ### get_s3_presigned_url_readonly()
+
 > `str`
 
 generates presigned URLs for time-limited S3 object access:
@@ -203,5 +208,45 @@ lang="python"
 #### Parameters
 
 - `filename`: `str` | The name of the file in S3.
-- `s3_bucket`: `str` | The name of the S4 bucket where the file is stored.
-- `expires_in`: `int = 120` | The expiration time for the presigned URL in seconds. Default is 120.
+- `s3_bucket`: `str` | The name of the S3 bucket where the file is stored.
+- `expires_in`: `int = 120` | (Optional) The expiration time for the presigned URL in seconds. Default is 120.
+
+### move_file_in_s3()
+
+> `bool`
+
+moves a file within S3 by copying to a new location and deleting the original:
+
+<Code
+    code={
+`
+from binaryrain_helper_cloud_aws.aws import move_file_in_s3
+
+# Move a file within the same bucket
+
+move_file_in_s3(
+source_bucket="my-bucket",
+source_filename="old-location/file.csv",
+destination_filename="new-location/file.csv",
+destination_bucket="my-bucket"
+)
+
+# Move a file to a different bucket
+
+move_file_in_s3(
+source_bucket="source-bucket",
+source_filename="data/export.json",
+destination_filename="archive/export.json",
+destination_bucket="archive-bucket"
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters
+
+- `source_bucket`: `str` | The name of the S3 bucket where the source file is stored.
+- `source_filename`: `str` | The name of the source file in S3.
+- `destination_filename`: `str` | The name of the destination file in S3.
+- `destination_bucket`: `str` | The name of the S3 bucket where the destination file will be stored.

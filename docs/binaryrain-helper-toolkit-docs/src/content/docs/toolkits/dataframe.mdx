@@ -83,7 +83,7 @@ lang="python"
 - `file_format`: `FileFormat` | The format of the file (e.g., CSV, Parquet, JSON, or Dict).
 - `file_format_options`: `dict | None` | Optional dictionary of options for the file format (e.g., engine for Parquet).
 
-### convert_dataframe_to_type()
+### from_dataframe_to_type()
 > `bytes | str | dict`
 
 handles converting DataFrames to different formats:
@@ -91,17 +91,17 @@ handles converting DataFrames to different formats:
 <Code
     code={
     `
-from binaryrain_helper_data_processing.dataframe import FileFormat, convert_dataframe_to_type
+from binaryrain_helper_data_processing.dataframe import FileFormat, from_dataframe_to_type
 
 # ....df is a pandas DataFrame
 
 # Convert to CSV bytes
 
-csv_bytes = convert_dataframe_to_type(df, FileFormat.CSV)
+csv_bytes = from_dataframe_to_type(df, FileFormat.CSV)
 
 # Convert with custom options
 
-parquet_bytes = convert_dataframe_to_type(df, FileFormat.PARQUET,
+parquet_bytes = from_dataframe_to_type(df, FileFormat.PARQUET,
 file_format_options={'engine': 'pyarrow'})
 `
 }
@@ -163,12 +163,12 @@ from binaryrain_helper_data_processing.dataframe import convert_to_datetime
 
 # ....df is a pandas DataFrame
 
-# Convert date columns
+# Convert date columns with automatic inference
 
 df = convert_to_datetime(df)
 
 # Format only specific formats:
-df = convert_to_datetime(df, ["%d.%m.%Y"])
+df = convert_to_datetime(df, date_formats=["%d.%m.%Y", "%Y-%m-%d"])
 `
 }
 lang="python"
@@ -178,6 +178,7 @@ lang="python"
 #### Parameters:
 
 - `df`: `pd.DataFrame` | The DataFrame with date columns to be converted.
+- `date_formats`: `list[str] | None` | Optional ordered list of strftime-compatible date format strings to attempt. If None, a built-in set of common formats is used and inference is enabled as a first step.
 
 ### format_datetime_columns()
 > `pd.DataFrame`
@@ -246,9 +247,13 @@ from binaryrain_helper_data_processing.dataframe import remove_empty_values
 
 # ....df is a pandas DataFrame
 
-# Remove empty values
+# Remove empty values with defaults
 
-df = remove_empty_values(df, filter_column'column1')
+df = remove_empty_values(df, filter_column='column1')
+
+# Remove empty values without dropping NaN or resetting index
+
+df = remove_empty_values(df, filter_column='column1', dropna=False, reset_index=False)
 `
 }
 lang="python"
@@ -258,9 +263,13 @@ lang="python"
 
 - `df`: `pd.DataFrame` | The DataFrame to be filtered.
 - `filter_column`: `str` | The column to filter out empty values.
+- `dropna`: `bool` | Optional boolean to drop rows where filter_column is NaN. Default is `True`.
+- `reset_index`: `bool` | Optional boolean to reset the index in the returned DataFrame. Default is `True`.
 
 ### format_numeric_values()
 > `pd.DataFrame`
+
+> ⚠️ **DEPRECATED**: This function has been deprecated. Please use `format_numeric_to_string()` instead.
 
 handles locale-specific number formatting:
 
@@ -297,3 +306,52 @@ lang="python"
 - `decimal_separator`: `str` | (Optional) The new decimal separator to be used. The default is `.`.
 - `thousands_separator`: `str` | (Optional) The new thousands separator to be used. The default is `,`.
 - `temp_separator`: `str` | (Optional) Temporary separator used during the conversion process. The default is `|`.
+
+### format_numeric_to_string()
+> `pd.DataFrame`
+
+formats specified columns as locale-style numeric strings with proper rounding and separator handling:
+
+<Code
+    code={
+    `
+from binaryrain_helper_data_processing.dataframe import format_numeric_to_string
+
+# ....df is a pandas DataFrame
+
+# Format numeric columns to European format (1.234,56)
+
+df = format_numeric_to_string(
+df,
+columns=['price', 'quantity'],
+decimal_separator=',',
+thousands_separator='.',
+old_decimal_separator='.',
+old_thousands_separator=',',
+decimal_places=2
+)
+
+# Format with different decimal places
+
+df = format_numeric_to_string(
+df,
+columns=['percentage'],
+decimal_separator='.',
+thousands_separator=',',
+decimal_places=4
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `df`: `pd.DataFrame` | The DataFrame with numeric values to be formatted.
+- `columns`: `list[str]` | List of columns to be formatted.
+- `decimal_separator`: `str` | (Optional) The decimal separator to use. The default is `,`.
+- `thousands_separator`: `str` | (Optional) The thousands separator to use. The default is `.`.
+- `old_decimal_separator`: `str` | (Optional) The old decimal separator to replace. The default is `.`.
+- `old_thousands_separator`: `str` | (Optional) The old thousands separator to replace. The default is `,`.
+- `temp_separator`: `str` | (Optional) Temporary separator used during the conversion process. The default is `|`.
+- `decimal_places`: `int` | (Optional) Number of decimal places to format to. The default is `2`.
