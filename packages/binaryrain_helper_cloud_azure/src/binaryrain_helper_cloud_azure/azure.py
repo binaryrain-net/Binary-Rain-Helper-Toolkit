@@ -32,7 +32,12 @@ def return_http_response(message: str, status_code: int) -> func.HttpResponse:
     )
 
 
-def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> bytes:
+def read_blob_data(
+    blob_account: str,
+    container_name: str,
+    blob_name: str,
+    blob_service_client: BlobServiceClient | None = None,
+) -> bytes:
     """
     Read data from a blob storage account.
 
@@ -42,6 +47,8 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
         The name of the container.
     :param str blob_name:
         The name of the blob.
+    :param BlobServiceClient blob_service_client:
+        An optional BlobServiceClient instance. If not provided, a new one will be created.
 
     :returns file_obj : bytes
         content of the object as bytes.
@@ -55,7 +62,7 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
 
     try:
         # Create blob service client
-        blob_service_client = BlobServiceClient(
+        blob_service_client = blob_service_client or BlobServiceClient(
             blob_account,
             credential=DefaultAzureCredential(),
         )
@@ -78,15 +85,17 @@ def read_blob_data(blob_account: str, container_name: str, blob_name: str) -> by
         byte_array = b"".join(chunk_list)
 
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(
-            f"Error while trying to download the blob data. Exception: {e}"
-        )
+        raise ValueError(f"Error while trying to download the blob data. Exception: {e}") from e
 
     return byte_array
 
 
 def upload_blob_data(
-    blob_account: str, container_name: str, blob_name: str, file_contents: bytes
+    blob_account: str,
+    container_name: str,
+    blob_name: str,
+    file_contents: bytes,
+    blob_service_client: BlobServiceClient | None = None,
 ) -> bool:
     """
     Save file to a storage account / blob.
@@ -99,6 +108,8 @@ def upload_blob_data(
         The name of the blob.
     :param bytes file_contents:
         The file contents to be saved.
+    :param BlobServiceClient blob_service_client:
+        An optional BlobServiceClient instance. If not provided, a new one will be created.
 
     :returns bool
         True if the file was saved successfully.
@@ -114,18 +125,14 @@ def upload_blob_data(
         raise ValueError("No container name provided.")
     if not blob_name:
         raise ValueError("No blob name provided.")
-    if (
-        not file_contents
-        or not isinstance(file_contents, bytes)
-        or len(file_contents) == 0
-    ):
+    if not isinstance(file_contents, bytes) or len(file_contents) == 0:
         raise ValueError(
             "No file contents provided or file contents are empty or not of type bytes."
         )
 
     try:
         # Create blob service client
-        blob_service_client = BlobServiceClient(
+        blob_service_client = blob_service_client or BlobServiceClient(
             blob_account,
             credential=DefaultAzureCredential(),
         )
@@ -144,7 +151,7 @@ def upload_blob_data(
             length=len(file_contents),
         )
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f"Error while trying to upload the blob data. Exception: {e}")
+        raise ValueError(f"Error while trying to upload the blob data. Exception: {e}") from e
 
     return True
 
@@ -177,12 +184,12 @@ def get_secret_data(key_vault_url: str, secret_name: str) -> dict:
             credential=DefaultAzureCredential(),
         )
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f"Error creating SecretClient. Exception: {e}")
+        raise ValueError(f"Error creating SecretClient. Exception: {e}") from e
 
     try:
         secret_data = secret_client.get_secret(secret_name).value
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f"Error while trying to get the secret data. Exception: {e}")
+        raise ValueError(f"Error while trying to get the secret data. Exception: {e}") from e
 
     return secret_data
 
@@ -193,7 +200,7 @@ def create_adf_pipeline(
     factory_name: str,
     pipeline_name: str,
     parameters: dict | None = None,
-    credentials: DefaultAzureCredential | TokenCredential = DefaultAzureCredential(),
+    credentials: DefaultAzureCredential | TokenCredential = None,
     adf_base_url: str = "https://management.azure.com",
 ) -> str:
     """
@@ -227,6 +234,8 @@ def create_adf_pipeline(
     if not subscription_id or subscription_id == "":
         raise ValueError("No subscription ID provided.")
 
+    credentials = credentials or DefaultAzureCredential()
+
     try:
         # Create a data factory client
         data_factory_client = DataFactoryManagementClient(
@@ -235,7 +244,7 @@ def create_adf_pipeline(
             base_url=adf_base_url,
         )
     except Exception as e:  # pylint: disable=broad-except
-        raise ValueError(f"Error creating DataFactoryManagementClient. Exception: {e}")
+        raise ValueError(f"Error creating DataFactoryManagementClient. Exception: {e}") from e
 
     try:
         response = data_factory_client.pipelines.create_run(
@@ -244,5 +253,56 @@ def create_adf_pipeline(
     except Exception as e:  # pylint: disable=broad-except
         raise BrokenPipeError(
             f"Error while trying to create the ADF pipeline. Exception: {e}"
-        )
+        ) from e
     return response.run_id
+
+
+def list_blob_names_in_container(
+    blob_storage_account: str,
+    container_name: str,
+    blob_service_client: BlobServiceClient | None = None,
+    starts_with: str | None = None,
+    include: str | list[str] | None = None,
+) -> list[str]:
+    """
+    List all blobs in a container.
+
+    :param str blob_storage_account:
+        The name of the blob storage account.
+    :param str container_name:
+        The name of the container.
+    :param BlobServiceClient blob_service_client:
+        An optional BlobServiceClient instance. If not provided, a new one will be created.
+    :param str starts_with:
+        Filter blobs whose names begin with the specified prefix.
+        Optional.
+    :param str | list[str] include:
+        Specify one or more additional datasets to include in the response.
+        Optional.
+
+    :returns list[str]:
+        A list of blob names in the container.
+    exception : ValueError
+        The exception raised if an error occurs while trying to list the blobs.
+    """
+
+    # validate the input parameters
+    if not blob_storage_account or not container_name:
+        raise ValueError("Error: Missing required input parameters.")
+
+    try:
+        # Create blob service client
+        blob_service_client = blob_service_client or BlobServiceClient(
+            blob_storage_account,
+            credential=DefaultAzureCredential(),
+        )
+
+        # Create container service client
+        container_client = blob_service_client.get_container_client(container_name)
+
+        # List blobs in the container
+        blob_list = container_client.list_blobs(name_starts_with=starts_with, include=include)
+
+        return [blob.name for blob in blob_list]
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError(f"Error while trying to list the blobs. Exception: {e}") from e
