@@ -1,9 +1,8 @@
 ---
-name: Publish Toolkits
+name: Test Toolkits
 
 "on":
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - packages/**
 
@@ -32,8 +31,8 @@ jobs:
             data_processing:
               - 'packages/binaryrain_helper_data_processing/**'
 
-  publish:
-    name: Publish ${{ matrix.name }}
+  test-packages:
+    name: Test ${{ matrix.name }}
     needs: changes
     if: |
       needs.changes.outputs.aws == 'true' ||
@@ -88,16 +87,3 @@ jobs:
         if: matrix.changed == 'true' && matrix.has_tests == 'true'
         working-directory: ${{ matrix.directory }}
         run: uv run pytest ./src/tests/ --cov ./src/${{ matrix.name }}/ --cov-fail-under=85
-
-      - name: Build the package
-        if: matrix.changed == 'true'
-        working-directory: ${{ matrix.directory }}
-        # The '--no-sources' flag excludes source files from the build artifact, ensuring only built distributions are included.
-        run: uv build --package ${{ matrix.name }} --no-sources
-
-      - name: Publish the package
-        if: matrix.changed == 'true'
-        working-directory: ${{ matrix.directory }}
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish --token $PYPI_TOKEN
