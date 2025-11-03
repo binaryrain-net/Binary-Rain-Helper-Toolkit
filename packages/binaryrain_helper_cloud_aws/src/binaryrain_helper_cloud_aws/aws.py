@@ -167,7 +167,6 @@ def get_s3_presigned_url_readonly(filename: str, s3_bucket: str, expires_in: int
         ExpiresIn=expires_in,
     )
 
-    # return the presigned URL
     return presigned_url
 
 

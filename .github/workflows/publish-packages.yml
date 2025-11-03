@@ -82,7 +82,7 @@ jobs:
       - name: Check Ruff
         if: matrix.changed == 'true'
         working-directory: ${{ matrix.directory }}
-        run: uv run ruff check .
+        run: uvx ruff check . --config pyproject.toml
 
       - name: Run tests with coverage
         if: matrix.changed == 'true' && matrix.has_tests == 'true'

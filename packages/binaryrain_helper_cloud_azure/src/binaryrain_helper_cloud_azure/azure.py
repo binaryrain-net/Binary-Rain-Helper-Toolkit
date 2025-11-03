@@ -254,6 +254,7 @@ def create_adf_pipeline(
         raise BrokenPipeError(
             f"Error while trying to create the ADF pipeline. Exception: {e}"
         ) from e
+
     return response.run_id
 
 
