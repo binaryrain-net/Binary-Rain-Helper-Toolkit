@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-helper-cloud-azure"
-version = "0.0.8"
+version = "0.0.9"
 description = "Aims to simplify and help with commonly used functions in the azure cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
     "azure-functions>=1.24.0",
     "azure-identity>=1.25.1",
-    "azure-storage-blob>=12.27.0",
+    "azure-storage-blob>=12.27.1",
     "azure-keyvault-secrets>=4.10.0",
     "azure-mgmt-datafactory>=9.2.0",
 ]

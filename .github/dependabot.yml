@@ -15,24 +15,7 @@ updates:
 
   # update python packages for aws helper
   - package-ecosystem: "uv"
-    directory: "packages/binaryrain_helper_cloud_aws"
-    schedule:
-      interval: "monthly"
-
-  # update python packages for azure helper
-  - package-ecosystem: "uv"
-    directory: "packages/binaryrain_helper_cloud_azure"
-    schedule:
-      interval: "monthly"
-
-  # update python packages for dataverse helper
-  - package-ecosystem: "uv"
-    directory: "packages/binaryrain_helper_cloud_dataverse"
-    schedule:
-      interval: "monthly"
-
-  # update python packages for data processing helper
-  - package-ecosystem: "uv"
-    directory: "packages/binaryrain_helper_data_processing"
+    directories:
+      - "packages/*"
     schedule:
       interval: "monthly"
