@@ -1,0 +1,105 @@
+---
+name: Publish Packages
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - packages/**
+
+# Removed workflow-level env to minimize secret exposure
+
+jobs:
+  changes:
+    name: Detect Package Changes
+    runs-on: ubuntu-latest
+    outputs:
+      aws: ${{ steps.filter.outputs.aws }}
+      azure: ${{ steps.filter.outputs.azure }}
+      dataverse: ${{ steps.filter.outputs.dataverse }}
+      data_processing: ${{ steps.filter.outputs.data_processing }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
+        id: filter
+        with:
+          filters: |
+            aws:
+              - 'packages/binaryrain_helper_cloud_aws/**'
+            azure:
+              - 'packages/binaryrain_helper_cloud_azure/**'
+            dataverse:
+              - 'packages/binaryrain_helper_cloud_dataverse/**'
+            data_processing:
+              - 'packages/binaryrain_helper_data_processing/**'
+
+  publish:
+    name: Publish ${{ matrix.name }}
+    needs: changes
+    if: |
+      needs.changes.outputs.aws == 'true' ||
+      needs.changes.outputs.azure == 'true' ||
+      needs.changes.outputs.dataverse == 'true' ||
+      needs.changes.outputs.data_processing == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: binaryrain_helper_cloud_aws
+            directory: packages/binaryrain_helper_cloud_aws
+            has_tests: false
+            changed: ${{ needs.changes.outputs.aws }}
+          - name: binaryrain_helper_cloud_azure
+            directory: packages/binaryrain_helper_cloud_azure
+            has_tests: false
+            changed: ${{ needs.changes.outputs.azure }}
+          - name: binaryrain_helper_cloud_dataverse
+            directory: packages/binaryrain_helper_cloud_dataverse
+            has_tests: false
+            changed: ${{ needs.changes.outputs.dataverse }}
+          - name: binaryrain_helper_data_processing
+            directory: packages/binaryrain_helper_data_processing
+            has_tests: true
+            changed: ${{ needs.changes.outputs.data_processing }}
+
+    steps:
+      - name: Skip unchanged packages
+        if: matrix.changed != 'true'
+        run: echo "Skipping ${{ matrix.name }} - no changes detected"
+
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        if: matrix.changed == 'true'
+
+      - name: Install uv
+        if: matrix.changed == 'true'
+        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41
+
+      - name: Install the project
+        if: matrix.changed == 'true'
+        working-directory: ${{ matrix.directory }}
+        run: uv sync --all-extras --dev
+
+      - name: Check Ruff
+        if: matrix.changed == 'true'
+        working-directory: ${{ matrix.directory }}
+        run: uv run ruff check .
+
+      - name: Run tests with coverage
+        if: matrix.changed == 'true' && matrix.has_tests == true
+        working-directory: ${{ matrix.directory }}
+        run: uv run pytest ./src/tests/ --cov ./src/${{ matrix.name }}/ --cov-fail-under=85
+
+      - name: Build the package
+        if: matrix.changed == 'true'
+        working-directory: ${{ matrix.directory }}
+        # The '--no-sources' flag excludes source files from the build artifact, ensuring only built distributions are included.
+        run: uv build --package ${{ matrix.name }} --no-sources
+
+      - name: Publish the package
+        if: matrix.changed == 'true'
+        working-directory: ${{ matrix.directory }}
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish --token $PYPI_TOKEN
