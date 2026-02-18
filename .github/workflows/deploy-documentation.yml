@@ -24,7 +24,7 @@ jobs:
       - name: Checkout your repository using git
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       - name: Install, build, and upload your site
-        uses: withastro/action@2226b5671ff302b175d9843add614af27e60bbfc
+        uses: withastro/action@15aa0a5a1e067940253e3b259413ab2ae882a740
         with:
           path: docs/binaryrain-helper-toolkit-docs
 
