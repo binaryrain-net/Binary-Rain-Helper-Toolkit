@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 from aws_lambda_powertools.utilities import parameters
 
 
@@ -215,3 +216,37 @@ def move_file_in_s3(
     # exception handling will be done by the caller
     # in order to provide more context on the error
     return True
+
+
+def check_if_file_exists_in_s3(filename: str, s3_bucket: str) -> bool:
+    """
+    Check if a file exists in S3.
+
+    :param str filename:
+        Name of the file in S3.
+    :param str s3_bucket:
+        Name of the S3 bucket where the file is stored.
+
+    :returns bool:
+        True if the file exists, False otherwise.
+    """
+
+    # validate input parameters
+    if not filename:
+        raise ValueError("No filename provided.")
+    if not s3_bucket:
+        raise ValueError("No S3 bucket provided.")
+
+    s3_client = boto3.client("s3")
+    try:
+        s3_client.head_object(Bucket=s3_bucket, Key=filename)
+        return True
+    except ClientError as e:
+        # if the error indicates the object is missing, then the file does not exist,
+        # otherwise re-raise the exception
+        error_code = e.response.get("Error", {}).get("Code")
+        status_code = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if error_code in ("404", "NoSuchKey") or status_code == 404:
+            return False
+        else:
+            raise
