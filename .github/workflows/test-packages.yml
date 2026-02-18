@@ -86,4 +86,6 @@ jobs:
       - name: Run tests with coverage
         if: matrix.changed == 'true' && matrix.has_tests == 'true'
         working-directory: ${{ matrix.directory }}
-        run: uv run pytest ./src/tests/ --cov ./src/${{ matrix.name }}/ --cov-fail-under=85
+        run: |
+            uv add pytest pytest-cov --dev
+            uv run pytest ./src/tests/ --cov ./src/${{ matrix.name }}/ --cov-fail-under=85

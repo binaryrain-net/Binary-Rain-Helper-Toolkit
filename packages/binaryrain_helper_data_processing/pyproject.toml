@@ -1,15 +1,13 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "0.1.2"
+version = "1.1.0"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-    "pandas>=2.3.3",
-    "pyarrow>=22.0.0",
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
+    "pandas>=3.0.1",
+    "pyarrow>=23.0.1",
 ]
 
 keywords = [
@@ -24,13 +22,14 @@ keywords = [
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
 ]
 
 [project.urls]
 Homepage = "https://binaryrain-net.github.io/Binary-Rain-Helper-Toolkit/"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=82.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
