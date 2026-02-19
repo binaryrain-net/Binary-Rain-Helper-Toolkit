@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-helper-cloud-dataverse"
-version = "0.0.2"
+version = "1.0.2"
 description = "Aims to simplify and help with connecting to and using Microsoft Dataverse."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
