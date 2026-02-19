@@ -16,7 +16,7 @@ jobs:
       dataverse: ${{ steps.filter.outputs.dataverse }}
       data_processing: ${{ steps.filter.outputs.data_processing }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
         id: filter
@@ -66,12 +66,12 @@ jobs:
         if: matrix.changed != 'true'
         run: echo "Skipping ${{ matrix.name }} - no changes detected"
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         if: matrix.changed == 'true'
 
       - name: Install uv
         if: matrix.changed == 'true'
-        uses: astral-sh/setup-uv@85856786d1ce8acfbcc2f13a5f3fbd6b938f9f41
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b
 
       - name: Install the project
         if: matrix.changed == 'true'
