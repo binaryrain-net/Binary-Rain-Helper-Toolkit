@@ -71,7 +71,7 @@ jobs:
 
       - name: Install uv
         if: matrix.changed == 'true'
-        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098
 
       - name: Install the project
         if: matrix.changed == 'true'
