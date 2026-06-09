@@ -85,7 +85,7 @@ jobs:
         run: uvx ruff check . --config pyproject.toml
 
       - name: Run tests with coverage
-        if: matrix.changed == 'true' && matrix.has_tests == 'true'
+        if: matrix.changed == 'true' && matrix.has_tests
         working-directory: ${{ matrix.directory }}
         run: |
             uv add pytest pytest-cov --dev
