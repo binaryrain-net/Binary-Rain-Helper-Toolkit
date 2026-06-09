@@ -50,7 +50,7 @@ export default defineConfig({
       },
       customCss: ["./src/styles/global.css"],
     }),
-  ],dWo
+  ],
 
   vite: {
     plugins: [tailwindcss()],
