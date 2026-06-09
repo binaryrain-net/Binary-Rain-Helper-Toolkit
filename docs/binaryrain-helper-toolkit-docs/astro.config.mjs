@@ -37,11 +37,11 @@ export default defineConfig({
         },
         {
           label: "Toolkits",
-          autogenerate: { directory: "toolkits" },
+          items: [{ autogenerate: { directory: "toolkits" } }],
         },
         {
           label: "Template Repositories",
-          autogenerate: { directory: "templates" },
+          items: [{ autogenerate: { directory: "templates" } }],
         },
       ],
       tableOfContents: {
@@ -50,7 +50,7 @@ export default defineConfig({
       },
       customCss: ["./src/styles/global.css"],
     }),
-  ],
+  ],dWo
 
   vite: {
     plugins: [tailwindcss()],
