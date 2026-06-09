@@ -234,7 +234,9 @@ def convert_to_datetime(
         infer = True
 
     for column in df.columns:
-        if pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_datetime64_any_dtype(df[column]):
+        if pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_datetime64_any_dtype(
+            df[column]
+        ):
             if df[column].isna().all():
                 continue
 
