@@ -13,7 +13,7 @@
     "@astrojs/starlight": "^0.37.7",
     "@astrojs/starlight-tailwind": "^4.0.2",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^5.18.2",
+    "astro": "^6.4.4",
     "devalue": "^5.8.1",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0"
