@@ -34,6 +34,7 @@ class FileFormat(Enum):
     CSV = 2
     DICT = 3
     JSON = 4
+    EXCEL = 5
 
 
 def create_dataframe(
@@ -48,7 +49,7 @@ def create_dataframe(
         The contents of the file to be loaded.
     :param FileFormat file_format:
         The format of the file to be loaded.
-        Currently supported: `csv` and `dict`, `parquet`, `json`.
+        Currently supported: `csv`, `dict`, `parquet`, `json`, `excel`.
     :param dict | None file_format_options:
         The options for the file format. Default is None.
 
@@ -86,6 +87,12 @@ def create_dataframe(
                     dataframe = pd.read_json(io.BytesIO(file_contents))
                 else:
                     dataframe = pd.read_json(io.BytesIO(file_contents), **file_format_options)
+
+            case FileFormat.EXCEL:
+                if file_format_options is None:
+                    dataframe = pd.read_excel(io.BytesIO(file_contents))
+                else:
+                    dataframe = pd.read_excel(io.BytesIO(file_contents), **file_format_options)
 
             case _:
                 raise TypeError(f"Error creating dataframe. Unknown file format: {file_format}")
@@ -140,6 +147,14 @@ def from_dataframe_to_type(
                     content = dataframe.to_json()
                 else:
                     content = dataframe.to_json(**file_format_options)
+
+            case FileFormat.EXCEL:
+                buffer = io.BytesIO()
+                if file_format_options is None:
+                    dataframe.to_excel(buffer, index=False)
+                else:
+                    dataframe.to_excel(buffer, index=False, **file_format_options)
+                content = buffer.getvalue()
 
             case _:
                 raise TypeError(f"Error converting dataframe. Unknown file format: {file_format}")
@@ -219,7 +234,7 @@ def convert_to_datetime(
         infer = True
 
     for column in df.columns:
-        if df[column].dtype == "object":
+        if pd.api.types.is_string_dtype(df[column]) or pd.api.types.is_datetime64_any_dtype(df[column]):
             if df[column].isna().all():
                 continue
 
@@ -338,7 +353,7 @@ def remove_empty_values(
         mask &= col.notna()
 
     # Only apply string trimming if dtype is string-like
-    if col.dtype == "object":
+    if pd.api.types.is_string_dtype(col):
         # Strip and keep rows where stripped value != ""
         stripped = col.astype(str).str.strip()
         mask &= stripped.ne("")

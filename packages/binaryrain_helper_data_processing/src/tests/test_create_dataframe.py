@@ -4,6 +4,7 @@ Tests all file formats, options, edge cases, and error handling.
 """
 
 import pytest
+import io
 import pandas as pd
 from binaryrain_helper_data_processing.dataframe import create_dataframe, FileFormat
 
@@ -172,6 +173,65 @@ class TestCreateDataframePARQUET:
         parquet_bytes = sample_df_test.to_parquet(engine="pyarrow")
 
         df_test = create_dataframe(parquet_bytes, FileFormat.PARQUET)
+
+        assert isinstance(df_test, pd.DataFrame)
+        assert df_test.empty
+
+
+class TestCreateDataframeEXCEL:
+    """Test cases for EXCEL file format."""
+
+    def test_excel_basic(self):
+        """Test basic Excel creation without options."""
+        sample_df_test = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [25, 30, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+            }
+        )
+        buffer = io.BytesIO()
+        sample_df_test.to_excel(buffer, index=False, engine="openpyxl")
+        excel_bytes = buffer.getvalue()
+
+        df_test = create_dataframe(excel_bytes, FileFormat.EXCEL)
+
+        assert isinstance(df_test, pd.DataFrame)
+        assert df_test.shape == (3, 3)
+        assert list(df_test.columns) == ["name", "age", "city"]
+        assert df_test.iloc[0]["name"] == "Alice"
+
+    def test_excel_with_sheet_name_option(self):
+        """Test Excel creation with a custom sheet name option."""
+        sample_df_test = pd.DataFrame(
+            {"name": ["Alice", "Bob"], "age": [25, 30], "city": ["New York", "Los Angeles"]}
+        )
+        buffer = io.BytesIO()
+        sample_df_test.to_excel(buffer, index=False, sheet_name="Data", engine="openpyxl")
+        excel_bytes = buffer.getvalue()
+
+        df_test = create_dataframe(
+            excel_bytes, FileFormat.EXCEL, file_format_options={"sheet_name": "Data"}
+        )
+
+        assert df_test.shape == (2, 3)
+        assert list(df_test.columns) == ["name", "age", "city"]
+
+    def test_excel_invalid_data(self):
+        """Test Excel with invalid bytes."""
+        invalid_bytes = b"not a valid excel file"
+
+        with pytest.raises(ValueError, match="Error creating dataframe"):
+            create_dataframe(invalid_bytes, FileFormat.EXCEL)
+
+    def test_excel_empty_dataframe(self):
+        """Test Excel from a dataframe with columns but no rows."""
+        sample_df_test = pd.DataFrame(columns=["name", "age"])
+        buffer = io.BytesIO()
+        sample_df_test.to_excel(buffer, index=False, engine="openpyxl")
+        excel_bytes = buffer.getvalue()
+
+        df_test = create_dataframe(excel_bytes, FileFormat.EXCEL)
 
         assert isinstance(df_test, pd.DataFrame)
         assert df_test.empty
@@ -427,5 +487,17 @@ class TestCreateDataframeIntegration:
 
         # Load back
         loaded_df_test = create_dataframe(parquet_bytes, FileFormat.PARQUET)
+
+        pd.testing.assert_frame_equal(original_df_test, loaded_df_test)
+
+    def test_excel_roundtrip(self):
+        """Test Excel roundtrip conversion."""
+        original_df_test = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+
+        buffer = io.BytesIO()
+        original_df_test.to_excel(buffer, index=False, engine="openpyxl")
+        excel_bytes = buffer.getvalue()
+
+        loaded_df_test = create_dataframe(excel_bytes, FileFormat.EXCEL)
 
         pd.testing.assert_frame_equal(original_df_test, loaded_df_test)

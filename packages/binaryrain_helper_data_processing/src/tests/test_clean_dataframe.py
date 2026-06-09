@@ -333,12 +333,17 @@ class TestCleanDataframeDataPreservation:
             }
         )
 
+        df_test["string_col"] = df_test["string_col"].astype("object")
+        df_test["int_col"] = df_test["int_col"].astype("int64")
+        df_test["float_col"] = df_test["float_col"].astype("float64")
+        df_test["bool_col"] = df_test["bool_col"].astype("bool")
+
         result = clean_dataframe(df_test)
 
-        assert result["string_col"].dtype == "object"
-        assert result["int_col"].dtype in ["int64", "int32"]
-        assert result["float_col"].dtype == "float64"
-        assert result["bool_col"].dtype == "bool"
+        assert pd.api.types.is_string_dtype(result["string_col"])
+        assert pd.api.types.is_integer_dtype(result["int_col"])
+        assert pd.api.types.is_float_dtype(result["float_col"])
+        assert pd.api.types.is_bool_dtype(result["bool_col"])
 
     def test_clean_preserves_column_names(self):
         """Test that column names are preserved after cleaning."""

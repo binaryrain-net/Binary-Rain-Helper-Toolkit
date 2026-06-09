@@ -197,6 +197,75 @@ class TestFromDataframeToTypePARQUET:
         assert isinstance(parquet_bytes, bytes)
 
 
+class TestFromDataframeToTypeEXCEL:
+    """Test cases for EXCEL file format conversion."""
+
+    def test_excel_basic(self):
+        """Test basic Excel conversion without options."""
+        df_test = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [25, 30, 35],
+                "city": ["New York", "Los Angeles", "Chicago"],
+            }
+        )
+
+        excel_bytes = from_dataframe_to_type(df_test, FileFormat.EXCEL)
+
+        assert isinstance(excel_bytes, bytes)
+        # Verify by reading back
+        df_result = pd.read_excel(pd.io.common.BytesIO(excel_bytes), engine="openpyxl")
+        pd.testing.assert_frame_equal(df_test, df_result)
+
+    def test_excel_with_sheet_name(self):
+        """Test Excel conversion with a custom sheet name option."""
+        df_test = pd.DataFrame({"name": ["Alice", "Bob"], "age": [25, 30]})
+
+        excel_bytes = from_dataframe_to_type(
+            df_test, FileFormat.EXCEL, file_format_options={"sheet_name": "Data"}
+        )
+
+        assert isinstance(excel_bytes, bytes)
+        # Verify by reading back with matching sheet name
+        df_result = pd.read_excel(
+            pd.io.common.BytesIO(excel_bytes), sheet_name="Data", engine="openpyxl"
+        )
+        pd.testing.assert_frame_equal(df_test, df_result)
+
+    def test_excel_empty_dataframe(self):
+        """Test Excel conversion with a dataframe with columns but no rows."""
+        df_test = pd.DataFrame(columns=["name", "age"])
+
+        excel_bytes = from_dataframe_to_type(df_test, FileFormat.EXCEL)
+
+        assert isinstance(excel_bytes, bytes)
+
+    def test_excel_with_mixed_types(self):
+        """Test Excel conversion with mixed data types."""
+        df_test = pd.DataFrame(
+            {
+                "string_col": ["a", "b", "c"],
+                "int_col": [1, 2, 3],
+                "float_col": [1.1, 2.2, 3.3],
+            }
+        )
+
+        excel_bytes = from_dataframe_to_type(df_test, FileFormat.EXCEL)
+
+        assert isinstance(excel_bytes, bytes)
+        # Verify by reading back
+        df_result = pd.read_excel(pd.io.common.BytesIO(excel_bytes), engine="openpyxl")
+        pd.testing.assert_frame_equal(df_test, df_result)
+
+    def test_excel_single_row(self):
+        """Test Excel conversion with single row."""
+        df_test = pd.DataFrame({"name": ["Alice"], "age": [25]})
+
+        excel_bytes = from_dataframe_to_type(df_test, FileFormat.EXCEL)
+
+        assert isinstance(excel_bytes, bytes)
+
+
 class TestFromDataframeToTypeJSON:
     """Test cases for JSON file format conversion."""
 
@@ -492,6 +561,20 @@ class TestFromDataframeToTypeIntegration:
 
         # Convert back to DataFrame
         loaded_df_test = pd.read_parquet(pd.io.common.BytesIO(parquet_bytes), engine="pyarrow")
+
+        pd.testing.assert_frame_equal(original_df_test, loaded_df_test)
+
+    def test_excel_roundtrip(self):
+        """Test Excel roundtrip conversion."""
+        original_df_test = pd.DataFrame(
+            {"col1": [1, 2, 3], "col2": ["a", "b", "c"], "col3": [1.1, 2.2, 3.3]}
+        )
+
+        # Convert to Excel
+        excel_bytes = from_dataframe_to_type(original_df_test, FileFormat.EXCEL)
+
+        # Convert back to DataFrame
+        loaded_df_test = pd.read_excel(pd.io.common.BytesIO(excel_bytes), engine="openpyxl")
 
         pd.testing.assert_frame_equal(original_df_test, loaded_df_test)
 

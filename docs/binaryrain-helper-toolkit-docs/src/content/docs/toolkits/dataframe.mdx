@@ -50,6 +50,7 @@ Enum `FileFormat` is used to specify the file format when creating or converting
 - `CSV`: For common tabular data
 - `JSON`: For structured data exchange
 - `DICT`: For Python dictionary data
+- `EXCEL`: For Excel spreadsheet files
 
 ## Key Functions
 
@@ -67,6 +68,10 @@ from binaryrain_helper_data_processing.dataframe import FileFormat, create_dataf
 
 df = create_dataframe(csv_bytes, FileFormat.CSV)
 
+# Create from Excel bytes
+
+df = create_dataframe(excel_bytes, FileFormat.EXCEL)
+
 # Create with custom options
 
 df = create_dataframe(parquet_bytes, FileFormat.PARQUET,
@@ -79,7 +84,7 @@ lang="python"
 
 #### Parameters:
 
-- `file_bytes`: `bytes | dict` | The bytes of the file to be converted into a DataFrame.
+- `file_contents`: `bytes | dict` | The bytes of the file to be converted into a DataFrame.
 - `file_format`: `FileFormat` | The format of the file (e.g., CSV, Parquet, JSON, or Dict).
 - `file_format_options`: `dict | None` | Optional dictionary of options for the file format (e.g., engine for Parquet).
 
@@ -98,6 +103,10 @@ from binaryrain_helper_data_processing.dataframe import FileFormat, from_datafra
 # Convert to CSV bytes
 
 csv_bytes = from_dataframe_to_type(df, FileFormat.CSV)
+
+# Convert to Excel bytes
+
+excel_bytes = from_dataframe_to_type(df, FileFormat.EXCEL)
 
 # Convert with custom options
 
@@ -301,10 +310,10 @@ lang="python"
 - `df`: `pd.DataFrame` | The DataFrame with numeric values to be formatted.
 - `columns`: `list[str]` | List of columns to be formatted.
 - `swap_separators`: `bool` | (Optional) Boolean indicating whether to swap the decimal and thousands separators.
-- `old_decimal_separator`: `str` | (Optional) The old decimal separator to be replaced. The default is `,`.
-- `old_thousands_separator`: `str` | (Optional) The old thousands separator to be replaced. The default is `.`.
-- `decimal_separator`: `str` | (Optional) The new decimal separator to be used. The default is `.`.
-- `thousands_separator`: `str` | (Optional) The new thousands separator to be used. The default is `,`.
+- `old_decimal_separator`: `str` | (Optional) The old decimal separator to be replaced. The default is `.`.
+- `old_thousands_separator`: `str` | (Optional) The old thousands separator to be replaced. The default is `,`.
+- `decimal_separator`: `str` | (Optional) The new decimal separator to be used. The default is `,`.
+- `thousands_separator`: `str` | (Optional) The new thousands separator to be used. The default is `.`.
 - `temp_separator`: `str` | (Optional) Temporary separator used during the conversion process. The default is `|`.
 
 ### format_numeric_to_string()

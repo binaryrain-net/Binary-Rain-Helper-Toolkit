@@ -118,7 +118,7 @@ class TestConvertToDatetimeCustomFormats:
         result = convert_to_datetime(df_test, date_formats=[])
 
         # Should not convert with empty format list
-        assert result["date"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["date"])
 
     def test_convert_with_none_format_list(self):
         """Test conversion with None format list (uses default)."""
@@ -332,7 +332,7 @@ class TestConvertToDatetimePreservesData:
         result = convert_to_datetime(df_test)
 
         assert pd.api.types.is_datetime64_any_dtype(result["date"])
-        assert result["name"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["name"])
         assert result["value"].dtype in ["int64", "int32"]
         assert result["flag"].dtype == "bool"
         assert list(result["name"]) == ["Alice", "Bob"]

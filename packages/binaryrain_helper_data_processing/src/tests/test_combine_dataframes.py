@@ -151,11 +151,14 @@ class TestCombineDataframesEdgeCases:
         df_one = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
         df_two = pd.DataFrame({"col1": [3, 4], "col2": ["c", "d"]})
 
+        df_one["col1"] = df_one["col1"].astype("int64")
+        df_one["col2"] = df_one["col2"].astype("object")
+
         result = combine_dataframes(df_one, df_two)
 
         assert result.shape == (4, 2)
-        assert result["col1"].dtype in ["int64", "int32"]
-        assert result["col2"].dtype == "object"
+        assert pd.api.types.is_integer_dtype(result["col1"])
+        assert pd.api.types.is_string_dtype(result["col2"])
 
     def test_combine_with_nan_values(self):
         """Test combining dataframes with NaN values."""

@@ -363,7 +363,7 @@ class TestRemoveEmptyValuesDataPreservation:
 
         result = remove_empty_values(df_test, "string_col")
 
-        assert result["string_col"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["string_col"])
         assert result["int_col"].dtype in ["int64", "int32"]
         assert result["float_col"].dtype == "float64"
         assert result["bool_col"].dtype == "bool"

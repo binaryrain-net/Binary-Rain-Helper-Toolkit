@@ -18,7 +18,7 @@ class TestFormatNumericToStringBasic:
         result = format_numeric_to_string(df_test, ["value"])
 
         assert isinstance(result, pd.DataFrame)
-        assert result["value"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["value"])
         assert result["value"].iloc[0] == "1.000,50"
         assert result["value"].iloc[1] == "2.000,75"
         assert result["value"].iloc[2] == "3.000,25"
@@ -477,7 +477,7 @@ class TestFormatNumericToStringSingleColumn:
 
         result = format_numeric_to_string(df_test, ["value1"])
 
-        assert result["value1"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["value1"])
         assert result["value2"].dtype == "float64"
 
     def test_single_numeric_column(self):
@@ -527,9 +527,9 @@ class TestFormatNumericToStringMultipleColumns:
 
         result = format_numeric_to_string(df_test, ["col1", "col2", "col3"])
 
-        assert result["col1"].dtype == "object"
-        assert result["col2"].dtype == "object"
-        assert result["col3"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["col1"])
+        assert pd.api.types.is_string_dtype(result["col2"])
+        assert pd.api.types.is_string_dtype(result["col3"])
 
     def test_format_subset_of_columns(self):
         """Test formatting a subset of columns."""
@@ -537,10 +537,10 @@ class TestFormatNumericToStringMultipleColumns:
 
         result = format_numeric_to_string(df_test, ["value1", "value2"])
 
-        assert result["value1"].dtype == "object"
-        assert result["value2"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["value1"])
+        assert pd.api.types.is_string_dtype(result["value2"])
         assert result["id"].dtype in ["int64", "int32"]
-        assert result["name"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["name"])
 
 
 class TestFormatNumericToStringWhitespace:
