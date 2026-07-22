@@ -6,12 +6,48 @@ updates:
     directory: "/.github/workflows"
     schedule:
       interval: "monthly"
+      day: "monday"
+      time: "02:00"
+      timezone: "Europe/Vienna"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    assignees:
+      - "Marcel-TO"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
 
   # update documentation dependencies
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/docs/binaryrain-helper-toolkit-docs"
     schedule:
       interval: "monthly"
+      day: "monday"
+      time: "02:00"
+      timezone: "Europe/Vienna"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "javascript:bun"
+    assignees:
+      - "Marcel-TO"
+    groups:
+      # Group all production dependencies together
+      documentation:
+        update-types:
+          - "minor"
+          - "patch"
+
 
   # update python packages for aws helper
   - package-ecosystem: "uv"
@@ -19,3 +55,19 @@ updates:
       - "packages/*"
     schedule:
       interval: "monthly"
+      day: "monday"
+      time: "02:00"
+      timezone: "Europe/Vienna"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python:uv"
+    assignees:
+      - "Marcel-TO"
+    groups:
+      uv:
+        patterns:
+          - "*"
