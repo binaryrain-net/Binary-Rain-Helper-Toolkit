@@ -1,11 +1,15 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "1.1.2"
+version = "1.1.3"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
-dependencies = ["pandas", "pyarrow", "openpyxl"]
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.5",
+    "pyarrow>=25.0.1",
+]
 
 keywords = [
     "binary rain",
@@ -45,7 +49,4 @@ filterwarnings = [
 ]
 
 [dependency-groups]
-dev = [
-    "pytest>=9.0.3",
-    "pytest-cov>=7.1.0",
-]
+dev = []

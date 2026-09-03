@@ -1,14 +1,13 @@
 [project]
 name = "binaryrain-helper-cloud-aws"
-version = "1.0.14"
+version = "1.0.15"
 description = "Aims to simplify and help with commonly used functions in the aws cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
 dependencies = [
-    "aws-lambda-powertools[tracer]",
-    "urllib3", # is a dependency of boto3, but we need to specify it explicitly to avoid CVE
-    "boto3",
+    "aws-lambda-powertools[tracer]>=3.34.0",
+    "boto3>=1.43.87",
 ]
 
 keywords = ["binary rain", "common", "help", "functions", "aws"]

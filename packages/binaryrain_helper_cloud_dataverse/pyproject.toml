@@ -1,11 +1,13 @@
 [project]
 name = "binaryrain-helper-cloud-dataverse"
-version = "1.0.4"
+version = "1.0.5"
 description = "Aims to simplify and help with connecting to and using Microsoft Dataverse."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
-dependencies = ["requests"]
+dependencies = [
+    "requests>=2.34.2",
+]
 
 keywords = ["binary rain", "common", "help", "dataverse", "microsoft dataverse"]
 

@@ -1,16 +1,16 @@
 [project]
 name = "binaryrain-helper-cloud-azure"
-version = "1.0.12"
+version = "1.0.13"
 description = "Aims to simplify and help with commonly used functions in the azure cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
 dependencies = [
-    "azure-functions",
-    "azure-identity",
-    "azure-storage-blob",
-    "azure-keyvault-secrets",
-    "azure-mgmt-datafactory",
+    "azure-functions>=1.25.0",
+    "azure-identity>=1.25.3",
+    "azure-keyvault-secrets>=4.11.2",
+    "azure-mgmt-datafactory>=10.0.0",
+    "azure-storage-blob>=12.30.1",
 ]
 
 keywords = ["binary rain", "common", "help", "functions", "azure"]
