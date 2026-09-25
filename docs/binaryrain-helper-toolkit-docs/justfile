@@ -1,0 +1,3 @@
+update-deps:
+    @echo "Updating dependencies..."
+    bun update --latest && bun run build
