@@ -1,0 +1,19 @@
+# Reset dependencies in pyproject.toml to resync with latest requirements.txt
+[group('Dev')]
+reset-deps:
+    just -g reset-deps
+
+# Lint the Python code using ruff
+[group('Dev')]
+lint:
+    uvx ruff@latest check .
+
+# Format the Python code using ruff
+[group('Dev')]
+format:
+    uvx ruff@latest format .
+    uvx ruff@latest check . --fix
+
+# Run tests with coverage and fail if coverage is below defined threshold
+test:
+    uv run pytest ./src/tests/ --cov ./src/binaryrain_helper_data_processing/ --cov-fail-under=85

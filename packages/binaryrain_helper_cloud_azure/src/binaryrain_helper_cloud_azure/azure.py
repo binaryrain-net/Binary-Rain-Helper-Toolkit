@@ -194,7 +194,7 @@ def get_secret_data(key_vault_url: str, secret_name: str) -> dict:
     return secret_data
 
 
-def create_adf_pipeline(
+def create_adf_pipeline(  # noqa: PLR0917
     subscription_id: str,
     resource_group_name: str,
     factory_name: str,

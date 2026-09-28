@@ -372,7 +372,7 @@ def remove_empty_values(
 
 
 @deprecated("This function has been deprecated. Please use `format_numeric_to_string` instead.")
-def format_numeric_values(
+def format_numeric_values(  # noqa: PLR0917
     df: pd.DataFrame,
     columns: list[str],
     swap_separators: bool = False,
@@ -419,7 +419,45 @@ def format_numeric_values(
     return df
 
 
-def format_numeric_to_string(
+def _round_half_away_from_zero(x, decimals=0):
+    """Round to avoid banker's rounding (round half away from zero)."""
+    factor = 10**decimals
+    # Add 0.5 for positive numbers or -0.5 for negatives to emulate rounding
+    if x >= 0:
+        return math.floor(x * factor + 0.5) / factor
+    return math.ceil(x * factor - 0.5) / factor
+
+
+def _parse_numeric_series(
+    series,
+    old_thousands_pattern,
+    old_decimal_pattern,
+    old_decimal_separator,
+):
+    """Parse a series into numeric values, coercing invalid entries to NaN."""
+    if pd.api.types.is_numeric_dtype(series):
+        return pd.to_numeric(series, errors="coerce")
+
+    prepared_series = series.astype(str).str.strip()
+    if old_thousands_pattern:
+        prepared_series = prepared_series.str.replace(old_thousands_pattern, "", regex=True)
+    if old_decimal_pattern and old_decimal_separator != ".":
+        prepared_series = prepared_series.str.replace(old_decimal_pattern, ".", regex=True)
+    # Empty strings -> NaN
+    prepared_series = prepared_series.replace({"": None})
+    return pd.to_numeric(prepared_series, errors="coerce")
+
+
+def _apply_separators(formatted, decimal_separator, thousands_separator, temp_separator):
+    """Adjust separators according to defined separators."""
+    return (
+        formatted.str.replace(",", temp_separator, regex=False)
+        .str.replace(".", decimal_separator, regex=False)
+        .str.replace(temp_separator, thousands_separator, regex=False)
+    )
+
+
+def format_numeric_to_string(  # noqa: PLR0917
     df: pd.DataFrame,
     columns: list[str],
     decimal_separator: str = ",",
@@ -467,15 +505,6 @@ def format_numeric_to_string(
     if temp_separator in (decimal_separator, thousands_separator):
         raise ValueError("temp_separator must differ from decimal and thousands separators")
 
-    # Helper function for manual rounding to avoid banker's rounding
-    def _round_manual(x, decimals=0):
-        factor = 10**decimals
-        # Add 0.5 for positive numbers or -0.5 for negatives to emulate rounding
-        if x >= 0:
-            return math.floor(x * factor + 0.5) / factor
-        else:
-            return math.ceil(x * factor - 0.5) / factor
-
     # Precompile regex-safe replacements
     if old_thousands_separator:
         old_thousands_pattern = re.escape(old_thousands_separator)
@@ -489,24 +518,18 @@ def format_numeric_to_string(
     fmt = f"{{:,.{decimal_places}f}}"
 
     for column in columns:
-        series = df[column]
-
-        # Parse to numeric
-        if pd.api.types.is_numeric_dtype(series):
-            numeric = pd.to_numeric(series, errors="coerce")
-        else:
-            prepared_series = series.astype(str).str.strip()
-            if old_thousands_pattern:
-                prepared_series = prepared_series.str.replace(old_thousands_pattern, "", regex=True)
-            if old_decimal_pattern and old_decimal_separator != ".":
-                prepared_series = prepared_series.str.replace(old_decimal_pattern, ".", regex=True)
-            # Empty strings -> NaN
-            prepared_series = prepared_series.replace({"": None})
-            numeric = pd.to_numeric(prepared_series, errors="coerce")
+        numeric = _parse_numeric_series(
+            df[column],
+            old_thousands_pattern,
+            old_decimal_pattern,
+            old_decimal_separator,
+        )
 
         # Format numbers; NaN -> empty string
         formatted = numeric.map(
-            lambda v: fmt.format(_round_manual(v, decimal_places)) if pd.notna(v) else ""
+            lambda v: (
+                fmt.format(_round_half_away_from_zero(v, decimal_places)) if pd.notna(v) else ""
+            )
         )
 
         # check if any formatting resulted in non-empty strings
@@ -514,13 +537,8 @@ def format_numeric_to_string(
             df[column] = formatted
             continue
 
-        # Adjust separators according to defined separators
-        formatted = (
-            formatted.str.replace(",", temp_separator, regex=False)
-            .str.replace(".", decimal_separator, regex=False)
-            .str.replace(temp_separator, thousands_separator, regex=False)
+        df[column] = _apply_separators(
+            formatted, decimal_separator, thousands_separator, temp_separator
         )
-
-        df[column] = formatted
 
     return df
