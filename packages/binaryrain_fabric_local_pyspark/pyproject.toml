@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-fabric-local-pyspark"
-version = "0.1.1"
+version = "0.1.2"
 description = "This tool can be used for local fabric development by providing a local caching layer to reduce capacity usage."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
