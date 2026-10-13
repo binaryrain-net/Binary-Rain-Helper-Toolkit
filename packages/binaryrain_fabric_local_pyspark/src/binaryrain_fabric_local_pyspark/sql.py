@@ -10,7 +10,7 @@ from azure.identity import DefaultAzureCredential
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 
-from binaryrain_helper_local_pyspark.config import FABRIC_TOKEN_SCOPE, SQL_COPT_SS_ACCESS_TOKEN
+from binaryrain_fabric_local_pyspark.config import FABRIC_TOKEN_SCOPE, SQL_COPT_SS_ACCESS_TOKEN
 
 
 @cache

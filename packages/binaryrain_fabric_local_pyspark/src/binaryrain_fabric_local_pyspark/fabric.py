@@ -11,13 +11,13 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.filedatalake import DataLakeServiceClient
 from deltalake import DeltaTable
 
-from binaryrain_helper_local_pyspark.auth import _credential, _storage_token
-from binaryrain_helper_local_pyspark.config import (
+from binaryrain_fabric_local_pyspark.auth import _credential, _storage_token
+from binaryrain_fabric_local_pyspark.config import (
     LAKEHOUSE_AREAS,
     MIN_ABFSS_SEGMENTS,
     MIN_RELATIVE_SEGMENTS,
 )
-from binaryrain_helper_local_pyspark.schemas import FabricPath
+from binaryrain_fabric_local_pyspark.schemas import FabricPath
 
 logger = logging.getLogger(__name__)
 

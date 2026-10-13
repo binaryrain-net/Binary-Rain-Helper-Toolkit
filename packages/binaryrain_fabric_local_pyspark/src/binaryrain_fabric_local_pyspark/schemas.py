@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from binaryrain_helper_local_pyspark.config import CACHE_DIR, ONELAKE_HOST
+from binaryrain_fabric_local_pyspark.config import CACHE_DIR, ONELAKE_HOST
 
 
 @dataclass(frozen=True, slots=True)

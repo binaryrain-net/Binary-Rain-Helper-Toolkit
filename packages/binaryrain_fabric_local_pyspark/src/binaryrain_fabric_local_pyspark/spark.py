@@ -12,9 +12,9 @@ from pyspark.sql import DataFrame
 from pyspark.sql import SparkSession as OriginalSparkSession
 from pyspark.sql.readwriter import DataFrameReader as OriginalDataFrameReader
 
-from binaryrain_helper_local_pyspark.config import CACHE_DIR
-from binaryrain_helper_local_pyspark.fabric import resolve_local_path
-from binaryrain_helper_local_pyspark.sql import get_fabric_engine, get_fabric_table_from_lakehouse
+from binaryrain_fabric_local_pyspark.config import CACHE_DIR
+from binaryrain_fabric_local_pyspark.fabric import resolve_local_path
+from binaryrain_fabric_local_pyspark.sql import get_fabric_engine, get_fabric_table_from_lakehouse
 
 logger = logging.getLogger(__name__)
 

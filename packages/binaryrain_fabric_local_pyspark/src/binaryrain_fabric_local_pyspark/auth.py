@@ -4,7 +4,7 @@ from functools import cache
 
 from azure.identity import DefaultAzureCredential
 
-from binaryrain_helper_local_pyspark.config import STORAGE_SCOPE
+from binaryrain_fabric_local_pyspark.config import STORAGE_SCOPE
 
 
 @cache
