@@ -1,0 +1,10 @@
+azure-identity
+azure-storage-file-datalake
+deltalake
+pyarrow
+pyspark
+pycryptodome
+sqlalchemy
+pandas
+python-dotenv
+pyodbc

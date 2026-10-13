@@ -31,6 +31,8 @@ jobs:
               - 'packages/binaryrain_helper_cloud_dataverse/**'
             data_processing:
               - 'packages/binaryrain_helper_data_processing/**'
+            fabric:
+              - 'packages/binaryrain_fabric_local_pyspark/**'
 
   publish:
     name: Publish ${{ matrix.name }}
@@ -39,7 +41,8 @@ jobs:
       needs.changes.outputs.aws == 'true' ||
       needs.changes.outputs.azure == 'true' ||
       needs.changes.outputs.dataverse == 'true' ||
-      needs.changes.outputs.data_processing == 'true'
+      needs.changes.outputs.data_processing == 'true' ||
+      needs.changes.outputs.fabric == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -61,6 +64,10 @@ jobs:
             directory: packages/binaryrain_helper_data_processing
             has_tests: true
             changed: ${{ needs.changes.outputs.data_processing }}
+          - name: binaryrain_fabric_local_pyspark
+            directory: packages/binaryrain_fabric_local_pyspark
+            has_tests: false
+            changed: ${{ needs.changes.outputs.fabric }}
 
     steps:
       - name: Skip unchanged packages
