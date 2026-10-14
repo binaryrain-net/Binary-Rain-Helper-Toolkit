@@ -1,13 +1,13 @@
 [project]
 name = "binaryrain-helper-cloud-aws"
-version = "1.0.16"
+version = "1.0.17"
 description = "Aims to simplify and help with commonly used functions in the aws cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
 dependencies = [
     "aws-lambda-powertools[tracer]>=3.35.0",
-    "boto3>=1.43.103",
+    "boto3>=1.43.113",
 ]
 
 keywords = ["binary rain", "common", "help", "functions", "aws"]
@@ -22,12 +22,8 @@ classifiers = [
 Homepage = "https://binaryrain-net.github.io/Binary-Rain-Helper-Toolkit/"
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["binaryrain_helper_cloud_aws"]
-package-dir = { "" = "src" }
+requires = ["uv_build>=0.11.24,<0.12.0"]
+build-backend = "uv_build"
 
 [tool.ruff]
 # Extend the settings from the ruff.toml file.

@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-helper-data-processing"
-version = "1.1.3"
+version = "1.1.4"
 description = "Aims to simplify and help with commonly used functions in the data processing areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=3.0.6",
-    "pyarrow>=25.0.1",
+    "pyarrow>=26.0.0",
 ]
 
 keywords = [
@@ -31,12 +31,8 @@ classifiers = [
 Homepage = "https://binaryrain-net.github.io/Binary-Rain-Helper-Toolkit/"
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["binaryrain_helper_data_processing"]
-package-dir = { "" = "src" }
+requires = ["uv_build>=0.11.24,<0.12.0"]
+build-backend = "uv_build"
 
 [tool.ruff]
 # Extend the settings from the ruff.toml file.

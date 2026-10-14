@@ -1,16 +1,16 @@
 [project]
 name = "binaryrain-helper-cloud-azure"
-version = "1.0.13"
+version = "1.0.14"
 description = "Aims to simplify and help with commonly used functions in the azure cloud data areas."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
 requires-python = ">=3.12"
 dependencies = [
     "azure-functions>=1.25.0",
-    "azure-identity>=1.25.3",
-    "azure-keyvault-secrets>=4.11.2",
+    "azure-identity>=1.26.0",
+    "azure-keyvault-secrets>=4.11.3",
     "azure-mgmt-datafactory>=10.0.0",
-    "azure-storage-blob>=12.30.3",
+    "azure-storage-blob>=12.31.0",
 ]
 
 keywords = ["binary rain", "common", "help", "functions", "azure"]
@@ -25,12 +25,8 @@ classifiers = [
 Homepage = "https://binaryrain-net.github.io/Binary-Rain-Helper-Toolkit/"
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["binaryrain_helper_cloud_azure"]
-package-dir = { "" = "src" }
+requires = ["uv_build>=0.11.24,<0.12.0"]
+build-backend = "uv_build"
 
 [tool.ruff]
 # Extend the settings from the ruff.toml file.
