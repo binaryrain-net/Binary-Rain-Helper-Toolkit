@@ -1,18 +1,20 @@
 """Configuration constants and environment variables used by the package.
 
 ``FABRIC_CACHE_DIR`` overrides the cache root. When unset, cached data goes under
-``.cache/fabric`` relative to the package source tree. Set ``FABRIC_CACHE_REFRESH=1``
+``.cache/fabric`` in the current working directory, which is normally the project root.
+``spark.log`` and the SQL cache sit next to it in ``.cache``. Set ``FABRIC_CACHE_REFRESH=1``
 to refresh cached data. ``FABRIC_WORKSPACE_ID`` and ``FABRIC_LAKEHOUSE_ID`` identify
-the default lakehouse for relative paths. ``FABRIC_SERVER`` and ``FABRIC_DATABASE``
+the default lakehouse for relative paths. ``FABRIC_SERVER`` and ``FABRIC_DEFAULT_DATABASE``
 configure the SQL endpoint, and ``FABRIC_SPARK_DEBUG=1`` enables verbose Spark output.
 """
 
 import os
 from pathlib import Path
 
-CACHE_DIR = Path(os.getenv("FABRIC_CACHE_DIR", Path(__file__).parents[1] / ".cache" / "fabric"))
+CACHE_DIR = Path(os.getenv("FABRIC_CACHE_DIR", Path.cwd() / ".cache" / "fabric"))
 
 LAKEHOUSE_AREAS = ("Files", "Tables")
+
 MIN_ABFSS_SEGMENTS = 3  # <lakehouse>/<area>/<relative>
 MIN_RELATIVE_SEGMENTS = 2  # <area>/<relative>
 

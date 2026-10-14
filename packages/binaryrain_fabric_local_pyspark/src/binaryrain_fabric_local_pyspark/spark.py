@@ -7,16 +7,21 @@ import subprocess
 from functools import partial
 from typing import Any
 
+import pyarrow as pa
 from pyspark import SparkConf, SparkContext, java_gateway
+from pyspark.errors import PySparkException
 from pyspark.sql import DataFrame
 from pyspark.sql import SparkSession as OriginalSparkSession
 from pyspark.sql.readwriter import DataFrameReader as OriginalDataFrameReader
 
 from binaryrain_fabric_local_pyspark.config import CACHE_DIR
+from binaryrain_fabric_local_pyspark.exceptions import FabricCacheError, SparkLaunchError
 from binaryrain_fabric_local_pyspark.fabric import resolve_local_path
 from binaryrain_fabric_local_pyspark.sql import get_fabric_engine, get_fabric_table_from_lakehouse
 
 logger = logging.getLogger(__name__)
+
+_JAVA_HINT = "Check that Java 17 or newer is installed and JAVA_HOME points to it."
 
 
 class DataFrameReader(OriginalDataFrameReader):
@@ -33,8 +38,16 @@ class DataFrameReader(OriginalDataFrameReader):
 
         :returns DataFrame:
             DataFrame loaded from the resolved local paths.
-        exception : ValueError
+        exception : FabricConfigurationError
             If a default lakehouse-relative path is used without the required Fabric IDs.
+        exception : FileNotFoundError
+            If a Fabric path does not exist in the lakehouse.
+        exception : FabricAuthenticationError
+            If an Azure access token cannot be acquired.
+        exception : FabricDownloadError
+            If the data cannot be downloaded from OneLake.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
         """
         return super().parquet(*(resolve_local_path(path) for path in paths), **options)
 
@@ -70,8 +83,14 @@ class SparkSession(OriginalSparkSession):
 
         :returns DataFrame:
             The query result, loaded from the cache for Fabric endpoint queries.
-        exception : ValueError
-            If no server is configured when the SQL engine is first created.
+        exception : FabricConfigurationError
+            If no Fabric SQL server is configured.
+        exception : FabricAuthenticationError
+            If an Azure access token cannot be acquired.
+        exception : FabricQueryError
+            If the Fabric SQL endpoint query fails.
+        exception : FabricCacheError
+            If the query result cannot be written to the local cache.
         """
         if args or kwargs:
             return super().sql(sqlQuery, args, **kwargs)
@@ -85,16 +104,22 @@ class SparkSession(OriginalSparkSession):
         else:
             logger.info("Cache miss, querying Fabric SQL endpoint: %s", cache_id)
             result = get_fabric_table_from_lakehouse(get_fabric_engine(), sqlQuery)
-            target.parent.mkdir(parents=True, exist_ok=True)
             tmp_path = target.with_name(f"{target.name}.tmp")
-            # Spark cannot read nanosecond timestamps, which pandas writes by default.
-            result.to_parquet(
-                tmp_path,
-                index=False,
-                coerce_timestamps="us",
-                allow_truncated_timestamps=True,
-            )
-            tmp_path.replace(target)
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                # Spark cannot read nanosecond timestamps, which pandas writes by default.
+                result.to_parquet(
+                    tmp_path,
+                    index=False,
+                    coerce_timestamps="us",
+                    allow_truncated_timestamps=True,
+                )
+                tmp_path.replace(target)
+            except (OSError, pa.ArrowException) as exc:
+                tmp_path.unlink(missing_ok=True)
+                raise FabricCacheError(
+                    f"Could not cache the query result at {target}: {exc}"
+                ) from exc
 
         return self.read.parquet(str(target))
 
@@ -108,6 +133,9 @@ def get_local_spark() -> SparkSession:
 
     :returns SparkSession:
         Local Spark session configured to use UTC and resolve Fabric data through the cache.
+    exception : SparkLaunchError
+        If the Spark JVM cannot start, usually because Java is missing or ``JAVA_HOME``
+        is wrong.
     """
     verbose = _spark_verbose()
     conf = (
@@ -120,7 +148,10 @@ def get_local_spark() -> SparkSession:
     )
     if not verbose:
         _launch_quiet_gateway(conf)
-    spark = OriginalSparkSession.builder.config(conf=conf).getOrCreate()
+    try:
+        spark = OriginalSparkSession.builder.config(conf=conf).getOrCreate()
+    except (PySparkException, OSError) as exc:
+        raise SparkLaunchError(f"Could not create the Spark session: {exc}. {_JAVA_HINT}") from exc
     spark.sparkContext.setLogLevel("INFO" if verbose else "ERROR")
     spark.__class__ = SparkSession
     return spark
@@ -145,19 +176,33 @@ def _launch_quiet_gateway(conf: SparkConf) -> None:
 
     The JVM prints startup warnings before any log level can be applied, and PySpark
     runs ``taskkill`` at exit on Windows, which prints to the console. Both are routed
-    away from the console here.
+    away from the console here. If the log file cannot be created, the quiet launch is
+    skipped and PySpark starts the JVM the normal way.
 
     :param SparkConf conf:
         Spark configuration used to launch the JVM.
+
+    exception : SparkLaunchError
+        If the JVM fails to start.
     """
     if SparkContext._gateway is not None:
         return
     log_path = CACHE_DIR.parent / "spark.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_file = log_path.open("w", encoding="utf-8")
-    gateway = java_gateway.launch_gateway(
-        conf, popen_kwargs={"stdout": log_file, "stderr": subprocess.STDOUT}
-    )
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = log_path.open("w", encoding="utf-8")
+    except OSError as exc:
+        logger.warning("Could not create %s, JVM output will not be redirected: %s", log_path, exc)
+        return
+    try:
+        gateway = java_gateway.launch_gateway(
+            conf, popen_kwargs={"stdout": log_file, "stderr": subprocess.STDOUT}
+        )
+    except (PySparkException, OSError) as exc:
+        log_file.close()
+        raise SparkLaunchError(
+            f"Could not start the Spark JVM: {exc}. {_JAVA_HINT} See {log_path} for JVM output."
+        ) from exc
     SparkContext._gateway = gateway
     SparkContext._jvm = gateway.jvm
     java_gateway.Popen = partial(

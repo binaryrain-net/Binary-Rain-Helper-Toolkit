@@ -6,16 +6,24 @@ import shutil
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
+import pyarrow as pa
 import pyarrow.dataset as ds
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
 from azure.storage.filedatalake import DataLakeServiceClient
 from deltalake import DeltaTable
+from deltalake.exceptions import DeltaError, TableNotFoundError
 
 from binaryrain_fabric_local_pyspark.auth import _credential, _storage_token
 from binaryrain_fabric_local_pyspark.config import (
     LAKEHOUSE_AREAS,
     MIN_ABFSS_SEGMENTS,
     MIN_RELATIVE_SEGMENTS,
+)
+from binaryrain_fabric_local_pyspark.exceptions import (
+    FabricAuthenticationError,
+    FabricCacheError,
+    FabricConfigurationError,
+    FabricDownloadError,
 )
 from binaryrain_fabric_local_pyspark.schemas import FabricPath
 
@@ -36,7 +44,9 @@ def parse_fabric_path(path: str) -> FabricPath | None:
     :returns FabricPath | None:
         Parsed Fabric path, or None when the input is not a recognized Fabric path.
     exception : ValueError
-        If an abfss URI is malformed or the default lakehouse IDs are missing for a relative path.
+        If an abfss URI is malformed.
+    exception : FabricConfigurationError
+        If the default lakehouse IDs are missing for a relative path.
     """
     if path.lower().startswith("abfss://"):
         parts = urlsplit(path)
@@ -60,7 +70,7 @@ def parse_fabric_path(path: str) -> FabricPath | None:
     workspace = os.getenv("FABRIC_WORKSPACE_ID")
     lakehouse = os.getenv("FABRIC_LAKEHOUSE_ID")
     if not workspace or not lakehouse:
-        raise ValueError(
+        raise FabricConfigurationError(
             f"{path} uses the default lakehouse, so FABRIC_WORKSPACE_ID and "
             "FABRIC_LAKEHOUSE_ID must be set"
         )
@@ -80,7 +90,17 @@ def resolve_local_path(path: str, refresh: bool | None = None) -> str:
     :returns str:
         Local cached path for a Fabric path, or the original path for any other input.
     exception : ValueError
+        If an abfss URI is malformed.
+    exception : FabricConfigurationError
         If a default lakehouse-relative path is used but its workspace or lakehouse ID is unset.
+    exception : FabricAuthenticationError
+        If no Azure token can be obtained.
+    exception : FileNotFoundError
+        If the remote file, folder or table does not exist.
+    exception : FabricDownloadError
+        If the download from Fabric fails.
+    exception : FabricCacheError
+        If the local cache cannot be written.
     """
     fabric_path = parse_fabric_path(path)
     if fabric_path is None:
@@ -108,8 +128,14 @@ def cache_table(table: FabricPath | str, refresh: bool = False) -> Path:
         Path to the directory containing the table's cached parquet files.
     exception : ValueError
         If the path is not a lakehouse ``Tables`` path.
-    exception : deltalake.exceptions.TableNotFoundError
+    exception : FabricAuthenticationError
+        If no Azure token can be obtained.
+    exception : FileNotFoundError
         If the remote Delta table does not exist.
+    exception : FabricDownloadError
+        If reading the Delta table from Fabric fails.
+    exception : FabricCacheError
+        If the local cache cannot be written.
     """
     fabric_path = _require_area(table, "Tables")
     target = fabric_path.local_path
@@ -119,11 +145,24 @@ def cache_table(table: FabricPath | str, refresh: bool = False) -> Path:
 
     logger.info("Cache miss, downloading from Fabric: %s", fabric_path.uri)
     options = {"bearer_token": _storage_token(), "use_fabric_endpoint": "true"}
-    dataset = DeltaTable(fabric_path.uri, storage_options=options).to_pyarrow_dataset()
-
     tmp_path = target.with_name(f"{target.name}.tmp")
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    ds.write_dataset(dataset, tmp_path, format="parquet")
+    try:
+        _remove(tmp_path)
+        dataset = DeltaTable(fabric_path.uri, storage_options=options).to_pyarrow_dataset()
+        ds.write_dataset(dataset, tmp_path, format="parquet")
+    except TableNotFoundError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FileNotFoundError(f"No Delta table found at {fabric_path.uri}") from exc
+    except (DeltaError, pa.ArrowException) as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricDownloadError(
+            f"Could not read the Delta table {fabric_path.uri}. Check your access to the "
+            f"lakehouse and your network connection. Details: {exc}"
+        ) from exc
+    except OSError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricCacheError(f"Could not write the cache for {fabric_path.uri}: {exc}") from exc
+
     _commit(tmp_path, target)
     return target
 
@@ -143,8 +182,14 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
         Path to the cached file or folder.
     exception : ValueError
         If the path is not a lakehouse ``Files`` path.
+    exception : FabricAuthenticationError
+        If Fabric rejects the Azure credentials or no credential is available.
     exception : FileNotFoundError
         If the remote file or folder does not exist.
+    exception : FabricDownloadError
+        If the download from Fabric fails.
+    exception : FabricCacheError
+        If the local cache cannot be written.
     """
     fabric_path = _require_area(file, "Files")
     target = fabric_path.local_path
@@ -157,29 +202,41 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
     remote_root = fabric_path.lakehouse_path
     logger.info("Cache miss, downloading from Fabric: %s", fabric_path.uri)
 
+    tmp_path = target.with_name(f"{target.name}.tmp")
     try:
         properties = file_system.get_file_client(remote_root).get_file_properties()
-    except ResourceNotFoundError as exc:
-        raise FileNotFoundError(f"{exc.error_code}: {fabric_path.uri} not found") from exc
-
-    # Spark writes "x.parquet" as a folder, so both layouts must be supported.
-    is_folder = properties.metadata.get("hdi_isfolder") == "true"
-    if is_folder:
-        remote_files = [
-            item.name for item in file_system.get_paths(remote_root) if not item.is_directory
-        ]
-    else:
-        remote_files = [remote_root]
-
-    tmp_path = target.with_name(f"{target.name}.tmp")
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    for remote_file in remote_files:
-        local_file = tmp_path
+        # Spark writes "x.parquet" as a folder, so both layouts must be supported.
+        is_folder = properties.metadata.get("hdi_isfolder") == "true"
         if is_folder:
-            local_file = tmp_path / PurePosixPath(remote_file).relative_to(remote_root)
-        local_file.parent.mkdir(parents=True, exist_ok=True)
-        with local_file.open("wb") as handle:
-            file_system.get_file_client(remote_file).download_file().readinto(handle)
+            remote_files = [
+                item.name for item in file_system.get_paths(remote_root) if not item.is_directory
+            ]
+        else:
+            remote_files = [remote_root]
+
+        _remove(tmp_path)
+        for remote_file in remote_files:
+            local_file = tmp_path
+            if is_folder:
+                local_file = tmp_path / PurePosixPath(remote_file).relative_to(remote_root)
+            local_file.parent.mkdir(parents=True, exist_ok=True)
+            with local_file.open("wb") as handle:
+                file_system.get_file_client(remote_file).download_file().readinto(handle)
+    except ResourceNotFoundError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FileNotFoundError(f"{exc.error_code}: {fabric_path.uri} not found") from exc
+    except ClientAuthenticationError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricAuthenticationError(
+            f"Fabric rejected the credentials for {fabric_path.uri}. Run `az login` and check "
+            f"that your account can read the lakehouse. Details: {exc}"
+        ) from exc
+    except AzureError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricDownloadError(f"Could not download {fabric_path.uri}: {exc}") from exc
+    except OSError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricCacheError(f"Could not write the cache for {fabric_path.uri}: {exc}") from exc
 
     _commit(tmp_path, target)
     return target
@@ -197,12 +254,38 @@ def _require_area(path: FabricPath | str, area: str) -> FabricPath:
     :returns FabricPath:
         Parsed lakehouse path.
     exception : ValueError
-        If the path is not a Fabric path or points into another area.
+        If an abfss URI is malformed.
+    exception : FabricConfigurationError
+        If the path is not a Fabric path or points into another area, or if the default
+        lakehouse IDs are unset.
     """
     fabric_path = path if isinstance(path, FabricPath) else parse_fabric_path(path)
     if fabric_path is None or fabric_path.area != area:
-        raise ValueError(f"Expected a lakehouse {area} path, got {path}")
+        raise FabricConfigurationError(f"Expected a lakehouse {area} path, got {path}")
     return fabric_path
+
+
+def _remove(path: Path, quiet: bool = False) -> None:
+    """
+    Delete a file or directory if it exists.
+
+    :param Path path:
+        File or directory to delete.
+    :param bool quiet:
+        Log a warning instead of raising when deletion fails. Used during cleanup so the
+        original error is not masked. Default is False.
+    exception : OSError
+        If deletion fails and ``quiet`` is False.
+    """
+    try:
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+    except OSError:
+        if not quiet:
+            raise
+        logger.warning("Could not remove temporary cache path: %s", path, exc_info=True)
 
 
 def _commit(tmp_path: Path, target: Path) -> None:
@@ -213,10 +296,16 @@ def _commit(tmp_path: Path, target: Path) -> None:
         Temporary location holding the completed download.
     :param Path target:
         Final cache location.
+    exception : FabricCacheError
+        If the old cache cannot be removed or the new one cannot be moved into place.
     """
-    if target.is_dir():
-        shutil.rmtree(target)
-    elif target.exists():
-        target.unlink()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path.rename(target)
+    try:
+        _remove(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path.rename(target)
+    except OSError as exc:
+        _remove(tmp_path, quiet=True)
+        raise FabricCacheError(
+            f"Could not move the download into the cache at {target}. Close any program using "
+            f"those files and try again. Details: {exc}"
+        ) from exc
