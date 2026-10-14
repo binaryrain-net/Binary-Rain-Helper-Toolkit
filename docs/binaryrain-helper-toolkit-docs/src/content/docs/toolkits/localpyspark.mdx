@@ -1,0 +1,351 @@
+---
+title: Fabric Local Pyspark
+description: This tool can be used for local fabric development by providing a local caching layer to reduce capacity usage
+---
+
+import { Code, Tabs, TabItem } from "@astrojs/starlight/components";
+
+<div style="display: flex; gap: 10px; margin-top: 0">
+  <a
+    href="https://pypi.org/project/binaryrain-fabric-local-pyspark/"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/pypi/v/binaryrain-fabric-local-pyspark?style=for-the-badge&color=%23aad7a0&link=https%3A%2F%2Fpypi.org%2Fproject%2Fbinaryrain-fabric-local-pyspark%2F&logo=pypi&logoColor=%23aad7a0"
+      alt="PyPI Version"
+    />
+  </a>
+  <a
+    href="https://github.com/binaryrain-net/Binary-Rain-Helper-Toolkit/tree/main/packages/binaryrain_fabric_local_pyspark"
+    target="_blank"
+  >
+    <img
+      src="https://img.shields.io/badge/Visit-Github-%23aad7a0?style=for-the-badge&logo=github&logoColor=%23aad7a0"
+      alt="Github"
+    />
+  </a>
+</div>
+
+`binaryrain_fabric_local_pyspark` is a python package that lets you run Microsoft Fabric PySpark code on your own machine without paying for capacity on every run. It builds on top of the normal PySpark setup in a Fabric Notebook and adds a local caching layer. The first time your code reads a lakehouse table, a lakehouse file or a Fabric SQL endpoint query, the data is downloaded into a cache folder in your project. Every later run reads from that folder and does not touch Fabric.
+
+## Installation
+
+To install the package you can use your favorite python package manager:
+
+<Tabs>
+  <TabItem label="PIP">
+    <Code code={`pip install binaryrain-fabric-local-pyspark`} lang="bash" />
+  </TabItem>
+  <TabItem label="UV">
+    <Code code={`uv add binaryrain-fabric-local-pyspark`} lang="bash" />
+  </TabItem>
+</Tabs>
+
+### Requirements
+
+- Python 3.12 or newer.
+- Java 17 or newer, with `JAVA_HOME` set. PySpark needs it to start.
+- ODBC Driver 18 for SQL Server, only if you use `spark.sql(...)` against the Fabric SQL endpoint.
+- An Azure sign-in that can read the lakehouse, for example `az login`. The package uses `DefaultAzureCredential`.
+
+## Configuration
+
+All settings are environment variables. Set them before you import the package, because the cache location is read at import time.
+
+- `FABRIC_WORKSPACE_ID`: Workspace for relative paths like `Tables/...`. Required for relative paths.
+- `FABRIC_LAKEHOUSE_ID`: Lakehouse for relative paths like `Tables/...`. Required for relative paths.
+- `FABRIC_SERVER`: SQL endpoint host for `spark.sql`. Required for `spark.sql`.
+- `FABRIC_DEFAULT_DATABASE`: Database on the SQL endpoint. Default is `default`.
+- `FABRIC_CACHE_DIR`: Root folder for the table and file cache. Default is `<cwd>/.cache/fabric`.
+- `FABRIC_CACHE_REFRESH`: Set to `1` to download again instead of reading the cache.
+- `FABRIC_SPARK_DEBUG`: Set to `1` for verbose Spark output.
+
+<Code
+    code={
+    `
+FABRIC_WORKSPACE_ID=<workspace id or name>
+FABRIC_LAKEHOUSE_ID=<lakehouse id or name>
+FABRIC_SERVER=<sql endpoint host>.datawarehouse.fabric.microsoft.com
+FABRIC_DEFAULT_DATABASE=<lakehouse name>
+`
+}
+lang="bash"
+/>
+
+The default cache folder is relative to the directory you start Python from. Run your script from the project root, or set `FABRIC_CACHE_DIR` to an absolute path. The package does not load `.env` files for you. Load them first, for example with `python-dotenv`, and do it before importing the package.
+
+## Cache Layout
+
+Three kinds of data are cached:
+
+- **Delta table** (`Tables/dbo/kunden`): The current table version is written as parquet files.
+- **File or folder** (`Files/raw/orders.parquet`): Downloaded byte for byte.
+- **SQL query** (`spark.sql("SELECT ...")`): Stored as one parquet file, named by a SHA-256 hash of the server and the query text.
+
+<Code
+    code={
+    `
+<project>/.cache/
+    fabric/<workspace>/<lakehouse>/<Tables|Files>/<relative path>
+    sql/<hash>.parquet
+    spark.log
+`
+}
+lang="text"
+/>
+
+A cache hit never checks Fabric. If the remote data changes, refresh the cache yourself. Downloads go to a `.tmp` path first and are moved into place when they finish, so a failed download does not leave a half-written cache entry. `spark.log` and the `sql` folder sit one level above `FABRIC_CACHE_DIR`. Add `.cache/` to your project's `.gitignore`.
+
+## Key Functions
+
+### get_local_spark()
+> `SparkSession`
+
+creates a local Spark session (`local[*]`, UTC session timezone) with two changes. `spark.read.parquet(...)` resolves Fabric paths through the cache, and `spark.sql(...)` runs your query on the Fabric SQL endpoint when you pass no parameters.
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.spark import get_local_spark
+
+spark = get_local_spark()
+
+# Delta table in the default lakehouse, cached as parquet
+customers = spark.read.parquet("Tables/dbo/kunden")
+
+# File or folder under Files, cached as is
+orders = spark.read.parquet("Files/onPrem/mssql/Orders.parquet")
+
+# Full abfss URI, any workspace or lakehouse you can read
+other = spark.read.parquet(
+"abfss://<workspace>@onelake.dfs.fabric.microsoft.com/<lakehouse>/Tables/dbo/kunden"
+)
+
+# T-SQL against the SQL endpoint, cached by query text
+top = spark.sql("SELECT TOP 100 * FROM dbo.kunden")
+`
+}
+lang="python"
+/>
+
+The Fabric SQL endpoint speaks T-SQL, not Spark SQL. If you pass `args` or keyword parameters, `spark.sql` skips the endpoint and runs on local Spark instead, without caching. Paths that are not Fabric paths, such as `C:\data\file.parquet`, are passed through unchanged.
+
+If Java is missing or `JAVA_HOME` is wrong, `SparkLaunchError` is raised. Unless `FABRIC_SPARK_DEBUG=1` is set, the Spark JVM logs go to `spark.log` instead of the console.
+
+#### Parameters:
+
+This function takes no parameters.
+
+### cache_table()
+> `Path`
+
+downloads a Delta table from a lakehouse `Tables` area, writes it as parquet into the cache and returns the local path:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.fabric import cache_table
+
+# Use the cache if present
+local_path = cache_table("Tables/dbo/kunden")
+
+# Download again
+local_path = cache_table("Tables/dbo/kunden", refresh=True)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `table`: `FabricPath | str` | The table to cache, as a `Tables/...` path, a full abfss URI or a `FabricPath`.
+- `refresh`: `bool` | Optional boolean to download the table again even if it is cached. Default is `False`.
+
+### cache_file()
+> `Path`
+
+downloads a file or folder from a lakehouse `Files` area into the cache and returns the local path. Folders are supported because Spark writes `x.parquet` as a folder:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.fabric import cache_file
+
+local_path = cache_file("Files/raw/orders.parquet")
+
+# Download again
+local_path = cache_file("Files/raw/orders.parquet", refresh=True)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `file`: `FabricPath | str` | The file or folder to cache, as a `Files/...` path, a full abfss URI or a `FabricPath`.
+- `refresh`: `bool` | Optional boolean to download the file again even if it is cached. Default is `False`.
+
+### resolve_local_path()
+> `str`
+
+returns the local cache path for a Fabric input, downloading it on the first call. Anything that is not a Fabric path is returned unchanged:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.fabric import resolve_local_path
+
+# Fabric path, returns the cached local path
+local_path = resolve_local_path("Tables/dbo/kunden")
+
+# Local path, returns the same string
+same_path = resolve_local_path("C:/data/file.parquet")
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `path`: `str` | A `Tables/...` path, a `Files/...` path, a full abfss URI or a local path.
+- `refresh`: `bool | None` | Optional boolean to force a download. If `None`, the `FABRIC_CACHE_REFRESH` environment variable decides. Default is `None`.
+
+### parse_fabric_path()
+> `FabricPath | None`
+
+parses a path into its workspace, lakehouse, area and relative parts. It accepts a full abfss URI (`abfss://<workspace>@<host>/<lakehouse>/<Files|Tables>/<relative>`) or the default lakehouse forms `Files/<relative>` and `Tables/<relative>`. The default lakehouse comes from `FABRIC_WORKSPACE_ID` and `FABRIC_LAKEHOUSE_ID`. Any other input returns `None`, which means it is a local path:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.fabric import parse_fabric_path
+
+fabric_path = parse_fabric_path("Tables/dbo/kunden")
+
+# ....fabric_path is a FabricPath
+print(fabric_path.workspace, fabric_path.lakehouse, fabric_path.area, fabric_path.relative)
+print(fabric_path.uri)
+print(fabric_path.local_path)
+
+# Not a Fabric path
+parse_fabric_path("C:/data/file.parquet")  # None
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `path`: `str` | The path to parse.
+
+### get_fabric_engine()
+> `Engine`
+
+creates a cached SQLAlchemy engine for the Fabric SQL endpoint, using ODBC Driver 18 for SQL Server. A fresh Azure access token is requested for every new connection:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.sql import get_fabric_engine
+
+# Uses FABRIC_SERVER and FABRIC_DEFAULT_DATABASE
+engine = get_fabric_engine()
+
+# Explicit server and database
+engine = get_fabric_engine(
+server="<host>.datawarehouse.fabric.microsoft.com",
+database="my_lakehouse",
+)
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `server`: `str | None` | Optional SQL endpoint host. If `None`, `FABRIC_SERVER` is used. Default is `None`.
+- `database`: `str | None` | Optional database name. If `None`, `FABRIC_DEFAULT_DATABASE` is used, then `default`. Default is `None`.
+
+### get_fabric_table_from_lakehouse()
+> `pd.DataFrame`
+
+runs a T-SQL query on the SQL endpoint and returns the rows as a pandas DataFrame. This call is not cached:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.sql import get_fabric_engine, get_fabric_table_from_lakehouse
+
+engine = get_fabric_engine()
+df = get_fabric_table_from_lakehouse(engine, "SELECT TOP 10 * FROM dbo.kunden")
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `engine`: `Engine` | SQLAlchemy engine connected to the Fabric endpoint.
+- `query`: `str` | The T-SQL query to run.
+
+### get_token()
+> `str`
+
+returns an Azure access token for a scope using `DefaultAzureCredential`:
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.auth import get_token
+
+# OneLake
+storage_token = get_token("https://storage.azure.com/.default")
+
+# SQL endpoint
+sql_token = get_token("https://database.windows.net/.default")
+`
+}
+lang="python"
+/>
+
+#### Parameters:
+
+- `scope`: `str` | The scope to request the token for.
+
+## Refreshing the Cache
+
+Set `FABRIC_CACHE_REFRESH=1` to refresh everything for one run. To refresh a single table or file, call `cache_table()` or `cache_file()` with `refresh=True`. You can also delete the folder under `.cache`.
+
+## Error Handling
+
+Every error the package raises on purpose derives from `FabricLocalSparkError` in `binaryrain_fabric_local_pyspark.exceptions`.
+
+- `FabricConfigurationError`: A required environment variable is missing, or a path is in the wrong area, such as a `Files/` path given to `cache_table()`. Also a `ValueError`.
+- `FabricAuthenticationError`: No Azure token is available, or Fabric rejects the credentials.
+- `FabricDownloadError`: Reading a table or file from OneLake fails.
+- `FabricCacheError`: The cache folder or SQL result file cannot be written.
+- `FabricQueryError`: The SQL endpoint connection or query fails, or the engine cannot be created.
+- `SparkLaunchError`: The Spark JVM does not start. Usually Java is missing or `JAVA_HOME` is wrong.
+
+A path that does not exist in the lakehouse raises the built-in `FileNotFoundError`. A malformed abfss URI raises `ValueError`.
+
+<Code
+    code={
+    `
+from binaryrain_fabric_local_pyspark.exceptions import FabricAuthenticationError
+
+try:
+df = spark.read.parquet("Tables/dbo/kunden")
+except FabricAuthenticationError:
+print("Run 'az login' and try again.")
+`
+}
+lang="python"
+/>
+
+## Limits
+
+- Tables are cached as plain parquet. Read them with `spark.read.parquet`, not `format("delta")`.
+- Only `spark.read.parquet` is wired to the cache. Other readers such as `csv` or `json` get no Fabric path resolution.
+- The cache has no expiry and no size limit.
+- The package only reads from Fabric. It never writes back to OneLake or the SQL endpoint.
