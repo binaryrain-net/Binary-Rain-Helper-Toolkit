@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
@@ -12,11 +13,25 @@ from pyspark import SparkConf, SparkContext, java_gateway
 from pyspark.errors import AnalysisException, PySparkException
 from pyspark.sql import DataFrame
 from pyspark.sql import SparkSession as OriginalSparkSession
+from pyspark.sql.classic.dataframe import DataFrame as ClassicDataFrame
 from pyspark.sql.readwriter import DataFrameReader as OriginalDataFrameReader
+from pyspark.sql.readwriter import DataFrameWriter as OriginalDataFrameWriter
+from pyspark.sql.utils import to_str
 
 from binaryrain_fabric_local_pyspark.config import CACHE_DIR
-from binaryrain_fabric_local_pyspark.exceptions import FabricCacheError, SparkLaunchError
-from binaryrain_fabric_local_pyspark.fabric import resolve_local_path
+from binaryrain_fabric_local_pyspark.exceptions import (
+    FabricCacheError,
+    FabricConfigurationError,
+    FabricWriteError,
+    SparkLaunchError,
+)
+from binaryrain_fabric_local_pyspark.fabric import (
+    parse_fabric_path,
+    parse_table_name,
+    resolve_local_path,
+    write_cache,
+)
+from binaryrain_fabric_local_pyspark.schemas import FabricPath
 from binaryrain_fabric_local_pyspark.sql import get_fabric_engine, get_fabric_table_from_lakehouse
 
 logger = logging.getLogger(__name__)
@@ -24,7 +39,16 @@ logger = logging.getLogger(__name__)
 _JAVA_HINT = "Check that Java 17 or newer is installed and JAVA_HOME points to it."
 
 # Local Spark errors that mean the query targets the Fabric endpoint, not a temp view.
-_FABRIC_FALLBACK_CONDITIONS = frozenset({"PARSE_SYNTAX_ERROR", "TABLE_OR_VIEW_NOT_FOUND"})
+_FABRIC_FALLBACK_CONDITIONS = frozenset(
+    {"PARSE_SYNTAX_ERROR", "TABLE_OR_VIEW_NOT_FOUND", "REQUIRES_SINGLE_PART_NAMESPACE"}
+)
+# Local Spark errors that mean a table name is not a temp view and may be in the cache.
+_TABLE_FALLBACK_CONDITIONS = frozenset(
+    {"TABLE_OR_VIEW_NOT_FOUND", "REQUIRES_SINGLE_PART_NAMESPACE"}
+)
+# Formats that can be redirected, both are written as parquet. Fabric defaults to delta.
+_REDIRECT_FORMATS = frozenset({"delta", "parquet"})
+_DEFAULT_WRITE_FORMAT = "delta"
 
 
 class DataFrameReader(OriginalDataFrameReader):
@@ -33,6 +57,10 @@ class DataFrameReader(OriginalDataFrameReader):
     def parquet(self, *paths: str, **options: str | float | bool | None) -> DataFrame:
         """
         Read parquet data, downloading Fabric lakehouse paths to the cache when needed.
+
+        A single Fabric path that is cached as a folder is read as a list of its parquet
+        files with the folder as ``basePath``. Spark's folder listing needs Hadoop's native
+        Windows libraries, while explicit files do not. Partition columns are still read.
 
         :param paths:
             One or more abfss URIs, default lakehouse-relative paths, or local paths.
@@ -52,7 +80,302 @@ class DataFrameReader(OriginalDataFrameReader):
         exception : FabricCacheError
             If the data cannot be written to the local cache.
         """
-        return super().parquet(*(resolve_local_path(path) for path in paths), **options)
+        resolved = [resolve_local_path(path) for path in paths]
+        if len(paths) == 1 and resolved[0] != paths[0]:
+            return self._read_cached(Path(resolved[0]), **options)
+        return super().parquet(*resolved, **options)
+
+    def _read_cached(self, path: Path, **options: str | float | bool | None) -> DataFrame:
+        """
+        Read a cached parquet file or folder without listing the folder in Spark.
+
+        :param Path path:
+            Cached parquet file or folder.
+        :param options:
+            Keyword options passed to PySpark's parquet reader.
+
+        :returns DataFrame:
+            DataFrame loaded from the cache.
+        """
+        files = _parquet_files(path) if path.is_dir() else []
+        if not files:
+            return super().parquet(str(path), **options)
+        # parquet() ignores unknown keyword options, so basePath is set as a reader option.
+        self.option("basePath", str(path))
+        return super().parquet(*files, **options)
+
+    def table(self, tableName: str) -> DataFrame:
+        """
+        Read a Spark table or view, falling back to tables written to the local cache.
+
+        Temporary views and tables known to local Spark are read first. Other names are
+        resolved with ``parse_table_name`` and read from the cache, where
+        ``DataFrameWriter.saveAsTable`` stores them.
+
+        :param str tableName:
+            Temp view name or table name such as ``lh_gold.dbo.customers``.
+
+        :returns DataFrame:
+            The table data.
+        exception : AnalysisException
+            If the name is neither known to local Spark nor in the local cache.
+        """
+        try:
+            return super().table(tableName)
+        except AnalysisException as exc:
+            if exc.getCondition() not in _TABLE_FALLBACK_CONDITIONS:
+                raise
+            local_path = _cached_table_path(tableName)
+            if local_path is None:
+                raise
+        logger.info("Reading table %s from the local cache: %s", tableName, local_path)
+        # Appends with mergeSchema can leave parquet files with different columns.
+        return self._read_cached(local_path, mergeSchema="true")
+
+
+class DataFrameWriter(OriginalDataFrameWriter):
+    """
+    Redirect writes to Fabric lakehouses into the local cache instead of OneLake.
+
+    ``saveAsTable`` always writes to the cache. ``save`` and ``parquet`` write to the cache
+    when the path is an abfss URI or a default lakehouse relative path, and to the given
+    local path otherwise. Delta and parquet writes are stored as parquet files, so no Delta
+    Lake or Hadoop setup is needed and production data cannot be overwritten.
+    """
+
+    def __init__(self, df: DataFrame) -> None:
+        """
+        Create a writer for ``df`` that records its settings for redirected writes.
+
+        :param DataFrame df:
+            DataFrame to write.
+        """
+        super().__init__(df)
+        self._save_mode: str | None = None
+        self._source: str | None = None
+        self._write_options: dict[str, str | None] = {}
+        self._partition_columns: list[str] = []
+
+    def mode(self, saveMode: str | None) -> "DataFrameWriter":
+        """
+        Set the save mode, see :meth:`pyspark.sql.DataFrameWriter.mode`.
+
+        :param str | None saveMode:
+            Spark save mode. None keeps the current mode.
+
+        :returns DataFrameWriter:
+            This writer.
+        """
+        if saveMode is not None:
+            self._save_mode = saveMode
+        super().mode(saveMode)
+        return self
+
+    def format(self, source: str) -> "DataFrameWriter":
+        """
+        Set the output format, see :meth:`pyspark.sql.DataFrameWriter.format`.
+
+        :param str source:
+            Output format such as ``delta`` or ``parquet``.
+
+        :returns DataFrameWriter:
+            This writer.
+        """
+        self._source = source
+        super().format(source)
+        return self
+
+    def option(self, key: str, value: str | float | bool | None) -> "DataFrameWriter":
+        """
+        Add a write option, see :meth:`pyspark.sql.DataFrameWriter.option`.
+
+        :param str key:
+            Option name. Names are case insensitive.
+        :param str | float | bool | None value:
+            Option value.
+
+        :returns DataFrameWriter:
+            This writer.
+        """
+        self._write_options[key.lower()] = to_str(value)
+        super().option(key, value)
+        return self
+
+    def options(self, **options: str | float | bool | None) -> "DataFrameWriter":
+        """
+        Add write options, see :meth:`pyspark.sql.DataFrameWriter.options`.
+
+        :param options:
+            Option names and values. Names are case insensitive.
+
+        :returns DataFrameWriter:
+            This writer.
+        """
+        self._write_options.update({key.lower(): to_str(value) for key, value in options.items()})
+        super().options(**options)
+        return self
+
+    def partitionBy(self, *cols: str | list[str]) -> "DataFrameWriter":
+        """
+        Set partition columns, see :meth:`pyspark.sql.DataFrameWriter.partitionBy`.
+
+        :param cols:
+            Column names, or a single list of column names.
+
+        :returns DataFrameWriter:
+            This writer.
+        """
+        self._partition_columns = _column_list(cols[0] if len(cols) == 1 else list(cols))
+        super().partitionBy(*cols)
+        return self
+
+    def save(
+        self,
+        path: str | None = None,
+        format: str | None = None,
+        mode: str | None = None,
+        partitionBy: str | list[str] | None = None,
+        **options: str | float | bool | None,
+    ) -> None:
+        """
+        Save the DataFrame, redirecting Fabric lakehouse paths into the local cache.
+
+        :param str | None path:
+            abfss URI, default lakehouse relative path, or local path. Default is None.
+        :param str | None format:
+            Output format. Default is None, which uses the writer's format or ``delta``.
+        :param str | None mode:
+            Spark save mode. Default is None, which uses the writer's mode.
+        :param str | list[str] | None partitionBy:
+            Partition columns. Default is None, which uses the writer's columns.
+        :param options:
+            Additional write options.
+        exception : FabricConfigurationError
+            If a default lakehouse relative path is used without the required Fabric IDs.
+        exception : FabricWriteError
+            If a redirected write uses an unsupported format or conflicts with the cache.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
+        """
+        fabric_path = parse_fabric_path(path) if path else None
+        if fabric_path is None:
+            super().save(path, format, mode, partitionBy, **options)
+            return
+        self._write_to_cache(fabric_path, format, mode, partitionBy, options)
+
+    def saveAsTable(
+        self,
+        name: str,
+        format: str | None = None,
+        mode: str | None = None,
+        partitionBy: str | list[str] | None = None,
+        **options: str | float | bool | None,
+    ) -> None:
+        """
+        Save the DataFrame as a lakehouse table in the local cache.
+
+        The table is stored at the cache location of ``Tables/<schema>/<table>``. See
+        ``parse_table_name`` for supported names. Read it back with ``spark.table``.
+
+        :param str name:
+            Table name such as ``customers``, ``dbo.customers`` or ``lh_gold.dbo.customers``.
+        :param str | None format:
+            Output format. Default is None, which uses the writer's format or ``delta``.
+        :param str | None mode:
+            Spark save mode. Default is None, which uses the writer's mode.
+        :param str | list[str] | None partitionBy:
+            Partition columns. Default is None, which uses the writer's columns.
+        :param options:
+            Additional write options.
+        exception : ValueError
+            If the table name is invalid.
+        exception : FabricConfigurationError
+            If the name relies on default Fabric IDs that are unset.
+        exception : FabricWriteError
+            If the format is unsupported or the write conflicts with the cache.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
+        """
+        self._write_to_cache(parse_table_name(name), format, mode, partitionBy, options)
+
+    def parquet(
+        self,
+        path: str,
+        mode: str | None = None,
+        partitionBy: str | list[str] | None = None,
+        compression: str | None = None,
+    ) -> None:
+        """
+        Save the DataFrame as parquet, redirecting Fabric lakehouse paths into the cache.
+
+        :param str path:
+            abfss URI, default lakehouse relative path, or local path.
+        :param str | None mode:
+            Spark save mode. Default is None, which uses the writer's mode.
+        :param str | list[str] | None partitionBy:
+            Partition columns. Default is None, which uses the writer's columns.
+        :param str | None compression:
+            Compression codec, ignored for redirected writes. Default is None.
+        exception : FabricConfigurationError
+            If a default lakehouse relative path is used without the required Fabric IDs.
+        exception : FabricWriteError
+            If a redirected write conflicts with the cache.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
+        """
+        fabric_path = parse_fabric_path(path)
+        if fabric_path is None:
+            super().parquet(path, mode, partitionBy, compression)
+            return
+        self._write_to_cache(fabric_path, "parquet", mode, partitionBy, {})
+
+    def _write_to_cache(
+        self,
+        fabric_path: FabricPath,
+        source: str | None,
+        mode: str | None,
+        partition_by: str | list[str] | None,
+        options: dict[str, str | float | bool | None],
+    ) -> None:
+        """
+        Write the DataFrame to the cache location of a lakehouse path.
+
+        Arguments override the settings made with ``mode``, ``format``, ``option`` and
+        ``partitionBy``. The data is collected to the driver as an Arrow table.
+
+        :param FabricPath fabric_path:
+            Lakehouse location that would be written in Fabric.
+        :param str | None source:
+            Output format, or None to use the writer's format.
+        :param str | None mode:
+            Spark save mode, or None to use the writer's mode.
+        :param str | list[str] | None partition_by:
+            Partition columns, or None to use the writer's columns.
+        :param dict[str, str | float | bool | None] options:
+            Write options passed to the write call.
+        exception : FabricWriteError
+            If the format is unsupported or the write conflicts with the cache.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
+        """
+        source = (source or self._source or _DEFAULT_WRITE_FORMAT).lower()
+        if source not in _REDIRECT_FORMATS:
+            raise FabricWriteError(
+                f"Cannot write format {source!r} to {fabric_path.uri} locally. Only "
+                f"{' and '.join(sorted(_REDIRECT_FORMATS))} writes are redirected to the cache."
+            )
+        write_options = {
+            **self._write_options,
+            **{key.lower(): to_str(value) for key, value in options.items()},
+        }
+        columns = _column_list(partition_by) if partition_by else self._partition_columns
+        write_cache(
+            fabric_path,
+            self._df.toArrow(),
+            mode or self._save_mode,
+            columns,
+            merge_schema=write_options.get("mergeschema") == "true",
+        )
 
 
 class SparkSession(OriginalSparkSession):
@@ -62,6 +385,20 @@ class SparkSession(OriginalSparkSession):
     def read(self) -> DataFrameReader:
         """Return a reader that resolves Fabric lakehouse paths through the local cache."""
         return DataFrameReader(self)
+
+    def table(self, tableName: str) -> DataFrame:
+        """
+        Read a Spark table or view, falling back to tables written to the local cache.
+
+        :param str tableName:
+            Temp view name or table name such as ``lh_gold.dbo.customers``.
+
+        :returns DataFrame:
+            The table data.
+        exception : AnalysisException
+            If the name is neither known to local Spark nor in the local cache.
+        """
+        return self.read.table(tableName)
 
     def sql(
         self,
@@ -170,7 +507,8 @@ def get_local_spark() -> SparkSession:
     Create or reuse a local Spark session with the Fabric-aware reader installed.
 
     The PySpark builder creates its base session class. This function changes the resulting
-    session's class so its ``read`` property uses :class:`DataFrameReader`.
+    session's class so its ``read`` property uses :class:`DataFrameReader`, and patches
+    ``DataFrame.write`` so writes use :class:`DataFrameWriter`.
 
     :returns SparkSession:
         Local Spark session configured to use UTC and resolve Fabric data through the cache.
@@ -195,7 +533,56 @@ def get_local_spark() -> SparkSession:
         raise SparkLaunchError(f"Could not create the Spark session: {exc}. {_JAVA_HINT}") from exc
     spark.sparkContext.setLogLevel("INFO" if verbose else "ERROR")
     spark.__class__ = SparkSession
+    ClassicDataFrame.write = property(DataFrameWriter, doc=DataFrameWriter.__doc__)
     return spark
+
+
+def _cached_table_path(name: str) -> Path | None:
+    """
+    Return the cache location of a lakehouse table name if it exists.
+
+    :param str name:
+        Table name accepted by ``parse_table_name``.
+
+    :returns Path | None:
+        The cache location, or None if the name is invalid, needs unset Fabric IDs or is
+        not cached.
+    """
+    try:
+        local_path = parse_table_name(name).local_path
+    except (ValueError, FabricConfigurationError):
+        return None
+    return local_path if local_path.exists() else None
+
+
+def _parquet_files(directory: Path) -> list[str]:
+    """
+    Return the parquet data files below a folder, skipping hidden files like Spark does.
+
+    :param Path directory:
+        Folder to search, including partition subfolders.
+
+    :returns list[str]:
+        Sorted file paths. Paths with a part starting with ``_`` or ``.`` are skipped.
+    """
+    return sorted(
+        str(path)
+        for path in directory.rglob("*.parquet")
+        if not any(part.startswith(("_", ".")) for part in path.relative_to(directory).parts)
+    )
+
+
+def _column_list(columns: str | list[str] | tuple[str, ...]) -> list[str]:
+    """
+    Normalize a column name or a sequence of column names to a list.
+
+    :param str | list[str] | tuple[str, ...] columns:
+        A single column name or a sequence of column names.
+
+    :returns list[str]:
+        The column names as a list.
+    """
+    return [columns] if isinstance(columns, str) else list(columns)
 
 
 def _spark_verbose() -> bool:

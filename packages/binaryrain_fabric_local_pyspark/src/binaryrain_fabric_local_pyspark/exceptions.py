@@ -26,6 +26,10 @@ class FabricCacheError(FabricLocalSparkError):
     """Raised when the local cache cannot be written or replaced."""
 
 
+class FabricWriteError(FabricLocalSparkError):
+    """Raised when a write to a Fabric path or table cannot be redirected to the cache."""
+
+
 class FabricQueryError(FabricLocalSparkError):
     """Raised when a query against the Fabric SQL endpoint fails."""
 

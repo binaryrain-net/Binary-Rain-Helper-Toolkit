@@ -48,11 +48,11 @@ other = spark.read.parquet(
 top = spark.sql("SELECT TOP 100 * FROM dbo.kunden")
 ```
 
-`get_local_spark()` returns a normal `SparkSession` with two changes. `spark.read.parquet(...)` resolves Fabric paths through the cache, and `spark.sql(...)` runs your query on the Fabric SQL endpoint when you pass no parameters.
+`get_local_spark()` returns a normal `SparkSession` with a few changes. `spark.read.parquet(...)` resolves Fabric paths through the cache, `spark.sql(...)` runs your query on the Fabric SQL endpoint when you pass no parameters, and writes to lakehouse paths and tables go to the cache, see [Writes](#writes).
 
 The Fabric SQL endpoint speaks T-SQL, not Spark SQL. If you pass `args` or keyword parameters, `spark.sql` skips the endpoint and runs on local Spark instead.
 
-Temp views work too. When the session has at least one temp view, `spark.sql` first runs the query on local Spark. If local Spark cannot parse the query, for example because of T-SQL syntax like `TOP 100`, or cannot find a referenced table, the query goes to the Fabric SQL endpoint as before. Any other error, such as a missing column on a temp view, is raised directly.
+Temp views work too. When the session has at least one temp view, `spark.sql` first runs the query on local Spark. If local Spark cannot parse the query, for example because of T-SQL syntax like `TOP 100`, or cannot find a referenced table, for example a name like `lh_gold.dbo.kunden`, the query goes to the Fabric SQL endpoint as before. Any other error, such as a missing column on a temp view, is raised directly.
 
 ```python
 spark.read.parquet("Files/onPrem/mssql/Kunden.parquet").createOrReplaceTempView("REGIO_MAPPING")
@@ -77,6 +77,27 @@ display(widget)  # Any IPython widget or object
 
 In Jupyter it renders through IPython. Without IPython it prints to the console.
 
+## Writes
+
+Writes to a lakehouse go to the local cache, never to OneLake. Your local runs cannot overwrite production data, and you need no Delta Lake or Hadoop setup.
+
+```python
+customers.write.mode("overwrite").option("overwriteSchema", "true").format(
+    "delta"
+).saveAsTable("lh_gold.dbo.customers")
+
+# Reads the table you just wrote from the cache.
+gold = spark.table("lh_gold.dbo.customers")
+```
+
+- `saveAsTable` always writes to the cache. `customers` and `dbo.customers` use the default lakehouse. `lh_gold.dbo.customers` uses the lakehouse named `lh_gold` in the default workspace, and `ws.lh_gold.dbo.customers` also names the workspace. A missing schema means `dbo`.
+- `save` and `parquet` write to the cache when the path is an abfss URI or a relative path such as `Tables/dbo/x` or `Files/out`. Local paths go to Spark unchanged.
+- `delta` and `parquet` formats are stored as parquet files. Other formats raise `FabricWriteError`. Without a format, `delta` is used, like in Fabric.
+- Save modes behave like Spark. `overwrite` replaces the data, `append` adds files, `ignore` skips existing targets, and the default mode fails when the target exists.
+- `append` checks that columns, types and `partitionBy` columns match. Set `option("mergeSchema", "true")` to allow new or changed columns.
+- `partitionBy` writes `column=value` folders, which are read back as columns.
+- `spark.table` and `spark.read.table` read temp views first and then tables in the cache.
+
 ## What gets cached
 
 | Source | Example input | How it is stored |
@@ -85,15 +106,21 @@ In Jupyter it renders through IPython. Without IPython it prints to the console.
 | File or folder | `Files/raw/orders.parquet` | Downloaded byte for byte |
 | SQL query | `spark.sql("SELECT ...")` | One parquet file, named by a SHA-256 hash of server and query text |
 | Temp view query | `spark.sql("SELECT ... FROM MY_VIEW")` | Not cached. It runs on local Spark against data that is already cached |
+| Local write | `df.write.saveAsTable("lh_gold.dbo.x")` | Parquet files, optionally in `column=value` folders |
 
 Default layout:
 
 ```text
 <project>/.cache/
     fabric/<workspace>/<lakehouse>/<Tables|Files>/<relative path>
+    fabric/<workspace>/<lakehouse name>.Lakehouse/Tables/<schema>/<table>
     sql/<hash>.parquet
     spark.log
 ```
+
+The second line is for tables written with a lakehouse name, such as `lh_gold.dbo.x`.
+
+Cached folders are read file by file, so Spark on Windows needs no `winutils.exe` or `hadoop.dll`.
 
 A cache hit never checks Fabric. If the remote data changes, refresh the cache yourself (see below).
 
@@ -143,6 +170,7 @@ Every error the package raises on purpose derives from `FabricLocalSparkError` i
 | `FabricAuthenticationError` | No Azure token is available, or Fabric rejects the credentials. |
 | `FabricDownloadError` | Reading a table or file from OneLake fails. |
 | `FabricCacheError` | The cache folder or SQL result file cannot be written. |
+| `FabricWriteError` | A write uses an unsupported format, targets an existing table in the default mode, or appends a different schema or partitioning. |
 | `FabricQueryError` | The SQL endpoint connection or query fails, or the engine cannot be created. |
 | `SparkLaunchError` | The Spark JVM does not start. Usually Java is missing or `JAVA_HOME` is wrong. |
 
@@ -161,8 +189,8 @@ except FabricAuthenticationError:
 
 | Module | Contents |
 | --- | --- |
-| `spark` | `get_local_spark`, plus the `SparkSession` and `DataFrameReader` subclasses |
-| `fabric` | `parse_fabric_path`, `resolve_local_path`, `cache_table`, `cache_file` |
+| `spark` | `get_local_spark`, plus the `SparkSession`, `DataFrameReader` and `DataFrameWriter` subclasses |
+| `fabric` | `parse_fabric_path`, `parse_table_name`, `resolve_local_path`, `cache_table`, `cache_file`, `write_cache` |
 | `sql` | `get_fabric_engine`, `get_fabric_table_from_lakehouse` |
 | `auth` | `get_token` |
 | `schemas` | `FabricPath` |
@@ -177,7 +205,13 @@ except FabricAuthenticationError:
 - A single `spark.sql` query cannot join a temp view with a table that exists only on the SQL endpoint. Load that table with `spark.read.parquet` and register it as a temp view first.
 - `display` renders a static table. It has no interactive chart view like Fabric.
 - The cache has no expiry and no size limit.
-- The package only reads from Fabric. It never writes back to OneLake or the SQL endpoint.
+- The package only reads from Fabric. Writes go to the local cache and never reach OneLake or the SQL endpoint.
+- `spark.sql` does not see tables you wrote locally. It queries the Fabric SQL endpoint, which has the production data. Use `spark.table(...)`, or register the table as a temp view first.
+- `FABRIC_CACHE_REFRESH=1` and `cache_table(..., refresh=True)` replace locally written tables with the Fabric version.
+- `lh_gold.dbo.x` and `Tables/dbo/x` are cached in different folders, even when `lh_gold` is your default lakehouse.
+- Writes collect the whole DataFrame on the driver, so very large writes need enough memory.
+- `insertInto` and `writeTo` are not redirected. Delta options such as `overwriteSchema` and `replaceWhere` are ignored.
+- A `spark.read.parquet` call with several Fabric paths lists folders in Spark, which needs Hadoop's native libraries on Windows. Read one path per call instead.
 
 ## License
 

@@ -86,6 +86,16 @@ def test_unknown_table_falls_back_to_fabric(spark: SparkSession, fabric_mock: Ma
     fabric_mock.assert_called_once()
 
 
+def test_three_part_name_falls_back_to_fabric(spark: SparkSession, fabric_mock: MagicMock) -> None:
+    """A lakehouse.schema.table name falls back to Fabric when temp views exist."""
+    _create_regio_view(spark)
+
+    result = spark.sql("SELECT * FROM lh_bronze.dbo.Kunden").collect()
+
+    assert [row.source for row in result] == ["fabric"]
+    fabric_mock.assert_called_once()
+
+
 def test_unknown_column_on_temp_view_raises(spark: SparkSession, fabric_mock: MagicMock) -> None:
     """Errors other than parse or missing table errors are raised, not sent to Fabric."""
     _create_regio_view(spark)
