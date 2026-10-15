@@ -52,7 +52,30 @@ top = spark.sql("SELECT TOP 100 * FROM dbo.kunden")
 
 The Fabric SQL endpoint speaks T-SQL, not Spark SQL. If you pass `args` or keyword parameters, `spark.sql` skips the endpoint and runs on local Spark instead.
 
+Temp views work too. When the session has at least one temp view, `spark.sql` first runs the query on local Spark. If local Spark cannot parse the query, for example because of T-SQL syntax like `TOP 100`, or cannot find a referenced table, the query goes to the Fabric SQL endpoint as before. Any other error, such as a missing column on a temp view, is raised directly.
+
+```python
+spark.read.parquet("Files/onPrem/mssql/Kunden.parquet").createOrReplaceTempView("REGIO_MAPPING")
+
+# Runs on local Spark against the temp view.
+mapping = spark.sql("SELECT Kundennummer FROM REGIO_MAPPING WHERE Kundennummer IS NOT NULL")
+```
+
 Paths that are not Fabric paths, such as `C:\data\file.parquet`, are passed through unchanged.
+
+Fabric notebooks provide a global `display` function. Import the local version to use the same calls outside Fabric:
+
+```python
+from binaryrain_fabric_local_pyspark.display import display
+
+display(mapping)  # Spark DataFrame, first 1000 rows
+display(mapping, summary=True)  # Spark DataFrame.summary() statistics
+display(pandas_frame)  # pandas DataFrame, describe() when summary=True
+display(rows)  # List of Rows, dicts or named tuples
+display(widget)  # Any IPython widget or object
+```
+
+In Jupyter it renders through IPython. Without IPython it prints to the console.
 
 ## What gets cached
 
@@ -61,6 +84,7 @@ Paths that are not Fabric paths, such as `C:\data\file.parquet`, are passed thro
 | Delta table | `Tables/dbo/kunden` | Current table version written as parquet files |
 | File or folder | `Files/raw/orders.parquet` | Downloaded byte for byte |
 | SQL query | `spark.sql("SELECT ...")` | One parquet file, named by a SHA-256 hash of server and query text |
+| Temp view query | `spark.sql("SELECT ... FROM MY_VIEW")` | Not cached. It runs on local Spark against data that is already cached |
 
 Default layout:
 
@@ -144,11 +168,14 @@ except FabricAuthenticationError:
 | `schemas` | `FabricPath` |
 | `exceptions` | The exception classes above |
 | `config` | Environment variables and constants |
+| `display` | `display`, a local stand in for the Fabric notebook function |
 
 ## Limits
 
 - Tables are cached as plain parquet. Read them with `spark.read.parquet`, not `format("delta")`.
 - Only `spark.read.parquet` is wired to the cache. Other readers such as `csv` or `json` get no Fabric path resolution.
+- A single `spark.sql` query cannot join a temp view with a table that exists only on the SQL endpoint. Load that table with `spark.read.parquet` and register it as a temp view first.
+- `display` renders a static table. It has no interactive chart view like Fabric.
 - The cache has no expiry and no size limit.
 - The package only reads from Fabric. It never writes back to OneLake or the SQL endpoint.
 

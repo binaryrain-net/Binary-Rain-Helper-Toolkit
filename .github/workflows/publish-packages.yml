@@ -16,7 +16,7 @@ jobs:
       azure: ${{ steps.filter.outputs.azure }}
       dataverse: ${{ steps.filter.outputs.dataverse }}
       data_processing: ${{ steps.filter.outputs.data_processing }}
-      fabric: ${{ steps.filter.outputs.fabric }}
+      fabric_local_pyspark: ${{ steps.filter.outputs.fabric_local_pyspark }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -32,7 +32,7 @@ jobs:
               - 'packages/binaryrain_helper_cloud_dataverse/**'
             data_processing:
               - 'packages/binaryrain_helper_data_processing/**'
-            fabric:
+            fabric_local_pyspark:
               - 'packages/binaryrain_fabric_local_pyspark/**'
 
   publish:
@@ -43,7 +43,7 @@ jobs:
       needs.changes.outputs.azure == 'true' ||
       needs.changes.outputs.dataverse == 'true' ||
       needs.changes.outputs.data_processing == 'true' ||
-      needs.changes.outputs.fabric == 'true'
+      needs.changes.outputs.fabric_local_pyspark == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -67,8 +67,8 @@ jobs:
             changed: ${{ needs.changes.outputs.data_processing }}
           - name: binaryrain_fabric_local_pyspark
             directory: packages/binaryrain_fabric_local_pyspark
-            has_tests: false
-            changed: ${{ needs.changes.outputs.fabric }}
+            has_tests: true
+            changed: ${{ needs.changes.outputs.fabric_local_pyspark }}
 
     steps:
       - name: Skip unchanged packages
