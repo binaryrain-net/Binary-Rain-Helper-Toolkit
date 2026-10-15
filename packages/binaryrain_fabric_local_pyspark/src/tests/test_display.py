@@ -1,5 +1,7 @@
 """Tests for the local Fabric ``display`` stand-in."""
 
+import importlib
+import sys
 from collections import namedtuple
 from unittest.mock import MagicMock
 
@@ -87,3 +89,29 @@ def test_falls_back_to_print_without_ipython(
     monkeypatch.setattr(display_module, "ipython_display", None)
     display(pd.DataFrame({"col": ["value"]}))
     assert "value" in capsys.readouterr().out
+
+
+def test_falls_back_to_print_for_other_objects(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(display_module, "ipython_display", None)
+    display(42)
+    assert capsys.readouterr().out.strip() == "42"
+
+
+def test_renders_with_ipython_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    ipython_display = MagicMock()
+    monkeypatch.setattr(display_module, "ipython_display", ipython_display)
+    frame = pd.DataFrame({"col": [1]})
+    display(frame)
+    ipython_display.assert_called_once_with(frame)
+
+
+def test_module_import_without_ipython() -> None:
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setitem(sys.modules, "IPython.display", None)
+            importlib.reload(display_module)
+            assert display_module.ipython_display is None
+    finally:
+        importlib.reload(display_module)

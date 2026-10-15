@@ -224,7 +224,9 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
                 file_system.get_file_client(remote_file).download_file().readinto(handle)
     except ResourceNotFoundError as exc:
         _remove(tmp_path, quiet=True)
-        raise FileNotFoundError(f"{exc.error_code}: {fabric_path.uri} not found") from exc
+        # error_code is added by the Storage SDK, not by azure-core, so it may be missing.
+        error_code = getattr(exc, "error_code", None) or "ResourceNotFound"
+        raise FileNotFoundError(f"{error_code}: {fabric_path.uri} not found") from exc
     except ClientAuthenticationError as exc:
         _remove(tmp_path, quiet=True)
         raise FabricAuthenticationError(

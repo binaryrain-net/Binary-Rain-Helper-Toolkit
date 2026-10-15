@@ -9,6 +9,7 @@ import pytest
 from pyspark.errors import AnalysisException
 
 from binaryrain_fabric_local_pyspark import spark as spark_module
+from binaryrain_fabric_local_pyspark.exceptions import FabricCacheError
 from binaryrain_fabric_local_pyspark.spark import SparkSession
 
 
@@ -101,3 +102,49 @@ def test_query_with_args_runs_locally(spark: SparkSession, fabric_mock: MagicMoc
 
     assert result[0].value == 5
     fabric_mock.assert_not_called()
+
+
+def test_fabric_query_is_served_from_cache(spark: SparkSession, fabric_mock: MagicMock) -> None:
+    """Running the same Fabric query twice only calls the endpoint once."""
+    spark.sql("SELECT * FROM dbo.Kunden").collect()
+    result = spark.sql("  SELECT * FROM dbo.Kunden  ").collect()
+
+    assert [row.source for row in result] == ["fabric"]
+    fabric_mock.assert_called_once()
+
+
+def test_cache_refresh_queries_fabric_again(
+    spark: SparkSession, fabric_mock: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FABRIC_CACHE_REFRESH=1 bypasses the cached query result."""
+    spark.sql("SELECT * FROM dbo.Kunden").collect()
+    monkeypatch.setenv("FABRIC_CACHE_REFRESH", "1")
+    spark.sql("SELECT * FROM dbo.Kunden").collect()
+
+    assert fabric_mock.call_count == 2
+
+
+def test_different_servers_use_different_cache_entries(
+    spark: SparkSession, fabric_mock: MagicMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The cache key includes the SQL endpoint."""
+    monkeypatch.setenv("FABRIC_SERVER", "server-a")
+    spark.sql("SELECT * FROM dbo.Kunden").collect()
+    monkeypatch.setenv("FABRIC_SERVER", "server-b")
+    spark.sql("SELECT * FROM dbo.Kunden").collect()
+
+    assert fabric_mock.call_count == 2
+
+
+def test_cache_write_error_raises_cache_error(
+    spark: SparkSession, fabric_mock: MagicMock, tmp_path: Path
+) -> None:
+    """A failure while caching the result raises FabricCacheError and removes the temp file."""
+    result = MagicMock()
+    result.to_parquet.side_effect = OSError("disk full")
+    fabric_mock.return_value = result
+
+    with pytest.raises(FabricCacheError, match="disk full"):
+        spark.sql("SELECT * FROM dbo.Kunden")
+
+    assert not list((tmp_path / "cache" / "sql").glob("*.tmp"))
