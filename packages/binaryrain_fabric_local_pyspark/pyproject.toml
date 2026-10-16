@@ -1,6 +1,6 @@
 [project]
 name = "binaryrain-fabric-local-pyspark"
-version = "0.1.6"
+version = "0.1.7"
 description = "This tool can be used for local fabric development by providing a local caching layer to reduce capacity usage."
 readme = "README.md"
 authors = [{ name = "Binary Rain" }, { name = "Marcel T.O" }]
@@ -9,7 +9,7 @@ dependencies = [
     "azure-identity>=1.26.0",
     "azure-storage-file-datalake>=12.26.0",
     "deltalake>=1.6.6",
-    "pandas>=3.0.6",
+    "pandas<3.0.0",
     "pyarrow>=26.0.0",
     "pycryptodome>=4.0.0",
     "pyodbc>=5.3.0",

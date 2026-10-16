@@ -1,0 +1,3 @@
+# Run tests with coverage and fail if coverage is below defined threshold
+test:
+    uv run pytest ./src/tests/ --cov ./src/binaryrain_fabric_local_pyspark/ --cov-fail-under=85

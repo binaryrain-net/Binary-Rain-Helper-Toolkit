@@ -82,9 +82,9 @@ In Jupyter it renders through IPython. Without IPython it prints to the console.
 Writes to a lakehouse go to the local cache, never to OneLake. Your local runs cannot overwrite production data, and you need no Delta Lake or Hadoop setup.
 
 ```python
-customers.write.mode("overwrite").option("overwriteSchema", "true").format(
-    "delta"
-).saveAsTable("lh_gold.dbo.customers")
+customers.write.mode("overwrite").option("overwriteSchema", "true").format("delta").saveAsTable(
+    "lh_gold.dbo.customers"
+)
 
 # Reads the table you just wrote from the cache.
 gold = spark.table("lh_gold.dbo.customers")

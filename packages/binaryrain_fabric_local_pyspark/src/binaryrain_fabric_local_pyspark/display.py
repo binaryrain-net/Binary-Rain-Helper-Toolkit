@@ -45,7 +45,8 @@ def _list_to_frame(data: list[Any]) -> pd.DataFrame | None:
         data = [item.asDict(recursive=True) for item in data]
     try:
         return pd.DataFrame(data)
-    except (TypeError, ValueError):
+    # pandas 2 raises AttributeError for mixed lists, pandas 3 raises TypeError.
+    except (AttributeError, TypeError, ValueError):
         logger.debug("List could not be converted to a DataFrame.", exc_info=True)
         return None
 
