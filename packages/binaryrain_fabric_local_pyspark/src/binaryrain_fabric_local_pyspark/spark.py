@@ -104,6 +104,38 @@ class DataFrameReader(OriginalDataFrameReader):
         self.option("basePath", str(path))
         return super().parquet(*files, **options)
 
+    def text(self, paths: str | list[str], **options: Any) -> DataFrame:
+        """
+        Read text files, downloading Fabric lakehouse ``Files`` paths to the cache when needed.
+
+        A Fabric path that is cached as a folder is read as a list of its files, so Spark
+        never lists the folder. Spark's folder listing needs Hadoop's native Windows
+        libraries, while explicit files do not. Local paths are passed through unchanged.
+
+        :param str | list[str] paths:
+            One abfss URI, default lakehouse-relative path or local path, or a list of them.
+        :param options:
+            Keyword options passed unchanged to PySpark's text reader, such as ``wholetext``
+            or ``lineSep``.
+
+        :returns DataFrame:
+            DataFrame with one ``value`` column, one row per line or per file.
+        exception : FabricConfigurationError
+            If a path points into the lakehouse ``Tables`` area, or if a default
+            lakehouse-relative path is used without the required Fabric IDs.
+        exception : FileNotFoundError
+            If a Fabric path does not exist in the lakehouse.
+        exception : FabricAuthenticationError
+            If an Azure access token cannot be acquired.
+        exception : FabricDownloadError
+            If the data cannot be downloaded from OneLake.
+        exception : FabricCacheError
+            If the data cannot be written to the local cache.
+        """
+        path_list = [paths] if isinstance(paths, str) else list(paths)
+        files = [file for path in path_list for file in _resolve_text_path(path)]
+        return super().text(files, **options)
+
     def table(self, tableName: str) -> DataFrame:
         """
         Read a Spark table or view, falling back to tables written to the local cache.
@@ -555,6 +587,50 @@ def _cached_table_path(name: str) -> Path | None:
     return local_path if local_path.exists() else None
 
 
+def _resolve_text_path(path: str) -> list[str]:
+    """
+    Resolve one text reader path to the local files Spark should read.
+
+    :param str path:
+        An abfss URI, a default lakehouse-relative path, or a local path.
+
+    :returns list[str]:
+        The cached files of a Fabric folder, or a single path. An empty cached folder and
+        any local path are returned as is.
+    exception : FabricConfigurationError
+        If the path points into the lakehouse ``Tables`` area.
+    """
+    fabric_path = parse_fabric_path(path)
+    if fabric_path is not None and fabric_path.area == "Tables":
+        raise FabricConfigurationError(
+            f"spark.read.text reads lakehouse Files paths only, got the table path {path}"
+        )
+    resolved = resolve_local_path(path)
+    if resolved == path or not Path(resolved).is_dir():
+        return [resolved]
+    return _data_files(Path(resolved)) or [resolved]
+
+
+def _data_files(directory: Path, pattern: str = "*") -> list[str]:
+    """
+    Return the data files below a folder, skipping hidden files like Spark does.
+
+    :param Path directory:
+        Folder to search, including subfolders.
+    :param str pattern:
+        Glob pattern the file names must match. Default is ``*``.
+
+    :returns list[str]:
+        Sorted file paths. Paths with a part starting with ``_`` or ``.`` are skipped.
+    """
+    return sorted(
+        str(path)
+        for path in directory.rglob(pattern)
+        if path.is_file()
+        and not any(part.startswith(("_", ".")) for part in path.relative_to(directory).parts)
+    )
+
+
 def _parquet_files(directory: Path) -> list[str]:
     """
     Return the parquet data files below a folder, skipping hidden files like Spark does.
@@ -565,11 +641,7 @@ def _parquet_files(directory: Path) -> list[str]:
     :returns list[str]:
         Sorted file paths. Paths with a part starting with ``_`` or ``.`` are skipped.
     """
-    return sorted(
-        str(path)
-        for path in directory.rglob("*.parquet")
-        if not any(part.startswith(("_", ".")) for part in path.relative_to(directory).parts)
-    )
+    return _data_files(directory, "*.parquet")
 
 
 def _column_list(columns: str | list[str] | tuple[str, ...]) -> list[str]:

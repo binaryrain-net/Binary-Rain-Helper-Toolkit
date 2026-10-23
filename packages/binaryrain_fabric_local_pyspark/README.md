@@ -39,6 +39,9 @@ customers = spark.read.parquet("Tables/dbo/kunden")
 # File or folder under Files, cached as is.
 orders = spark.read.parquet("Files/onPrem/mssql/Orders.parquet")
 
+# Text file or folder under Files, one row per line in the "value" column.
+lines = spark.read.text("Files/raw/export.csv")
+
 # Full abfss URI, any workspace or lakehouse you can read.
 other = spark.read.parquet(
     "abfss://<workspace>@onelake.dfs.fabric.microsoft.com/<lakehouse>/Tables/dbo/kunden"
@@ -48,7 +51,7 @@ other = spark.read.parquet(
 top = spark.sql("SELECT TOP 100 * FROM dbo.kunden")
 ```
 
-`get_local_spark()` returns a normal `SparkSession` with a few changes. `spark.read.parquet(...)` resolves Fabric paths through the cache, `spark.sql(...)` runs your query on the Fabric SQL endpoint when you pass no parameters, and writes to lakehouse paths and tables go to the cache, see [Writes](#writes).
+`get_local_spark()` returns a normal `SparkSession` with a few changes. `spark.read.parquet(...)` and `spark.read.text(...)` resolve Fabric paths through the cache, `spark.sql(...)` runs your query on the Fabric SQL endpoint when you pass no parameters, and writes to lakehouse paths and tables go to the cache, see [Writes](#writes).
 
 The Fabric SQL endpoint speaks T-SQL, not Spark SQL. If you pass `args` or keyword parameters, `spark.sql` skips the endpoint and runs on local Spark instead.
 
@@ -104,6 +107,7 @@ gold = spark.table("lh_gold.dbo.customers")
 | --- | --- | --- |
 | Delta table | `Tables/dbo/kunden` | Current table version written as parquet files |
 | File or folder | `Files/raw/orders.parquet` | Downloaded byte for byte |
+| Text file or folder | `spark.read.text("Files/raw/export.csv")` | Downloaded byte for byte, like any other file |
 | SQL query | `spark.sql("SELECT ...")` | One parquet file, named by a SHA-256 hash of server and query text |
 | Temp view query | `spark.sql("SELECT ... FROM MY_VIEW")` | Not cached. It runs on local Spark against data that is already cached |
 | Local write | `df.write.saveAsTable("lh_gold.dbo.x")` | Parquet files, optionally in `column=value` folders |
@@ -201,7 +205,9 @@ except FabricAuthenticationError:
 ## Limits
 
 - Tables are cached as plain parquet. Read them with `spark.read.parquet`, not `format("delta")`.
-- Only `spark.read.parquet` is wired to the cache. Other readers such as `csv` or `json` get no Fabric path resolution.
+- Only `spark.read.parquet` and `spark.read.text` are wired to the cache. Other readers such as `csv` or `json` get no Fabric path resolution.
+- `spark.read.text` accepts only `Files` paths. A `Tables` path raises `FabricConfigurationError`, because tables are cached as parquet.
+- Wildcards such as `Files/raw/*.txt` are not supported. Pass the folder instead. Files and folders whose names start with `_` or `.` are skipped.
 - A single `spark.sql` query cannot join a temp view with a table that exists only on the SQL endpoint. Load that table with `spark.read.parquet` and register it as a temp view first.
 - `display` renders a static table. It has no interactive chart view like Fabric.
 - The cache has no expiry and no size limit.
@@ -211,7 +217,7 @@ except FabricAuthenticationError:
 - `lh_gold.dbo.x` and `Tables/dbo/x` are cached in different folders, even when `lh_gold` is your default lakehouse.
 - Writes collect the whole DataFrame on the driver, so very large writes need enough memory.
 - `insertInto` and `writeTo` are not redirected. Delta options such as `overwriteSchema` and `replaceWhere` are ignored.
-- A `spark.read.parquet` call with several Fabric paths lists folders in Spark, which needs Hadoop's native libraries on Windows. Read one path per call instead.
+- A `spark.read.parquet` call with several Fabric paths lists folders in Spark, which needs Hadoop's native libraries on Windows. Read one path per call instead. `spark.read.text` has no such limit, because it lists each cached folder itself.
 
 ## License
 

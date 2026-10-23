@@ -10,7 +10,7 @@ import pytest
 from pyspark import SparkContext
 
 from binaryrain_fabric_local_pyspark import spark as spark_module
-from binaryrain_fabric_local_pyspark.exceptions import SparkLaunchError
+from binaryrain_fabric_local_pyspark.exceptions import FabricConfigurationError, SparkLaunchError
 from binaryrain_fabric_local_pyspark.spark import (
     DataFrameReader,
     SparkSession,
@@ -63,6 +63,113 @@ def test_reader_resolves_paths_before_reading(
 
     assert sorted(row.id for row in result.collect()) == [1, 2]
     resolve.assert_called_once_with("Files/raw/kunden.parquet")
+
+
+_TEXT_URI = "abfss://ws@onelake.dfs.fabric.microsoft.com/lh/Files/raw/logs"
+
+
+def test_text_passes_local_paths_through(spark: SparkSession, tmp_path: Path) -> None:
+    """Local text files are read without touching the cache."""
+    local_file = tmp_path / "local.txt"
+    local_file.write_text("a\nb\n", encoding="utf-8")
+
+    result = spark.read.text(str(local_file))
+
+    assert [row.value for row in result.collect()] == ["a", "b"]
+
+
+def test_text_reads_cached_file(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A Fabric file path is resolved to its cached file."""
+    cached = tmp_path / "file.txt"
+    cached.write_text("x\ny\n", encoding="utf-8")
+    resolve = MagicMock(return_value=str(cached))
+    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+
+    result = spark.read.text(f"{_TEXT_URI}/file.txt")
+
+    assert [row.value for row in result.collect()] == ["x", "y"]
+    resolve.assert_called_once_with(f"{_TEXT_URI}/file.txt")
+
+
+def test_text_expands_cached_folder(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A cached folder is read file by file, skipping hidden and underscore files."""
+    folder = tmp_path / "logs"
+    (folder / "sub").mkdir(parents=True)
+    (folder / "a.txt").write_text("1\n", encoding="utf-8")
+    (folder / "sub" / "b.log").write_text("2\n", encoding="utf-8")
+    (folder / "_SUCCESS").write_text("skip\n", encoding="utf-8")
+    (folder / ".hidden").write_text("skip\n", encoding="utf-8")
+    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+    text_mock = MagicMock()
+    monkeypatch.setattr(spark_module.OriginalDataFrameReader, "text", text_mock)
+
+    spark.read.text(_TEXT_URI, wholetext=True)
+
+    files = [str(folder / "a.txt"), str(folder / "sub" / "b.log")]
+    text_mock.assert_called_once_with(files, wholetext=True)
+
+
+def test_text_reads_cached_folder_with_spark(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Expanded folder files are read by Spark and options such as wholetext still apply."""
+    folder = tmp_path / "logs"
+    folder.mkdir()
+    (folder / "a.txt").write_bytes(b"1\n2\n")
+    (folder / "b.txt").write_bytes(b"3\n")
+    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+
+    lines = spark.read.text(_TEXT_URI)
+    whole = spark.read.text(_TEXT_URI, wholetext=True)
+
+    assert sorted(row.value for row in lines.collect()) == ["1", "2", "3"]
+    assert sorted(row.value for row in whole.collect()) == ["1\n2\n", "3\n"]
+
+
+def test_text_keeps_empty_cached_folder(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An empty cached folder is passed to Spark as the folder itself."""
+    folder = tmp_path / "empty"
+    folder.mkdir()
+    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+    text_mock = MagicMock()
+    monkeypatch.setattr(spark_module.OriginalDataFrameReader, "text", text_mock)
+
+    spark.read.text(_TEXT_URI)
+
+    text_mock.assert_called_once_with([str(folder)])
+
+
+def test_text_accepts_a_list_of_paths(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Every path in a list is resolved and the files are read together."""
+    first = tmp_path / "one.txt"
+    second = tmp_path / "two.txt"
+    first.write_text("one\n", encoding="utf-8")
+    second.write_text("two\n", encoding="utf-8")
+    cached = {f"{_TEXT_URI}/one.txt": str(first), f"{_TEXT_URI}/two.txt": str(second)}
+    monkeypatch.setattr(spark_module, "resolve_local_path", cached.__getitem__)
+
+    result = spark.read.text(list(cached))
+
+    assert sorted(row.value for row in result.collect()) == ["one", "two"]
+
+
+def test_text_rejects_table_paths(spark: SparkSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tables paths raise before anything is downloaded."""
+    resolve = MagicMock()
+    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+
+    with pytest.raises(FabricConfigurationError, match="Files paths only"):
+        spark.read.text("abfss://ws@onelake.dfs.fabric.microsoft.com/lh/Tables/dbo/kunden")
+
+    resolve.assert_not_called()
 
 
 # get_local_spark
