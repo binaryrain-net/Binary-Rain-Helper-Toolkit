@@ -4,13 +4,16 @@ from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pyarrow as pa
 import pyarrow.dataset as ds
 import pytest
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame
 from pyspark.sql.readwriter import DataFrameWriter as OriginalDataFrameWriter
 
+from binaryrain_fabric_local_pyspark import fabric as fabric_module
 from binaryrain_fabric_local_pyspark import schemas as schemas_module
+from binaryrain_fabric_local_pyspark import spark as spark_module
 from binaryrain_fabric_local_pyspark.exceptions import FabricWriteError
 from binaryrain_fabric_local_pyspark.spark import DataFrameWriter, SparkSession
 
@@ -239,10 +242,54 @@ def test_table_reads_temp_views(spark: SparkSession) -> None:
     assert _ids(spark.table("customers")) == [0, 1, 2]
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["KTO", "src_banqpro.KTO", "LH_Silver.src_banqpro.KTO", "ws.LH_Silver.src_banqpro.KTO"],
+)
+def test_remote_table_is_cached(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """Uncached Fabric tables are downloaded once and read by either table API."""
+    delta = MagicMock()
+    delta.return_value.to_pyarrow_dataset.return_value = ds.dataset(pa.table({"id": [1, 2]}))
+    monkeypatch.setattr(fabric_module, "DeltaTable", delta)
+    monkeypatch.setattr(fabric_module, "_storage_token", lambda: "test-token")
+
+    assert _ids(spark.table(name)) == [1, 2]
+    assert _ids(spark.read.table(name)) == [1, 2]
+
+    lakehouse = "LH_Silver.Lakehouse" if name.count(".") >= 2 else "lh"
+    schema = "dbo" if "." not in name else "src_banqpro"
+    delta.assert_called_once_with(
+        f"abfss://ws@onelake.dfs.fabric.microsoft.com/{lakehouse}/Tables/{schema}/KTO",
+        storage_options={"bearer_token": "test-token", "use_fabric_endpoint": "true"},
+    )
+
+
+def test_table_refresh_downloads_again(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Table reads honor the same refresh flag as Fabric path reads."""
+    _frame(spark).write.saveAsTable("LH_Silver.src_banqpro.KTO")
+    delta = MagicMock()
+    delta.return_value.to_pyarrow_dataset.return_value = ds.dataset(pa.table({"id": [9]}))
+    monkeypatch.setattr(fabric_module, "DeltaTable", delta)
+    monkeypatch.setattr(fabric_module, "_storage_token", lambda: "test-token")
+    monkeypatch.setenv("FABRIC_CACHE_REFRESH", "1")
+
+    assert _ids(spark.table("LH_Silver.src_banqpro.KTO")) == [9]
+    delta.assert_called_once()
+
+
 @pytest.mark.parametrize("name", ["missing", "lh_gold.dbo.missing"])
-def test_unknown_table_raises(spark: SparkSession, name: str) -> None:
-    """Names that are neither views nor cached raise the Spark error."""
-    with pytest.raises(AnalysisException):
+def test_unknown_table_raises(
+    spark: SparkSession, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """Missing remote tables raise the download error rather than a Spark namespace error."""
+    resolve = MagicMock(side_effect=FileNotFoundError("No Delta table found"))
+    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+
+    with pytest.raises(FileNotFoundError, match="No Delta table found"):
         spark.table(name)
 
 

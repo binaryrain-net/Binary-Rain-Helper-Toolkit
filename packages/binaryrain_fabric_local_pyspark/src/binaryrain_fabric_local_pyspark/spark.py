@@ -138,11 +138,11 @@ class DataFrameReader(OriginalDataFrameReader):
 
     def table(self, tableName: str) -> DataFrame:
         """
-        Read a Spark table or view, falling back to tables written to the local cache.
+        Read a Spark table or view, falling back to cached or remote Fabric tables.
 
         Temporary views and tables known to local Spark are read first. Other names are
-        resolved with ``parse_table_name`` and read from the cache, where
-        ``DataFrameWriter.saveAsTable`` stores them.
+        resolved with ``parse_table_name`` and read through the Fabric cache. Missing
+        tables are downloaded from OneLake, like ``parquet`` reads of ``Tables`` paths.
 
         :param str tableName:
             Temp view name or table name such as ``lh_gold.dbo.customers``.
@@ -150,14 +150,22 @@ class DataFrameReader(OriginalDataFrameReader):
         :returns DataFrame:
             The table data.
         exception : AnalysisException
-            If the name is neither known to local Spark nor in the local cache.
+            If local Spark cannot resolve the name and it cannot identify a Fabric table.
+        exception : FileNotFoundError
+            If the remote Fabric table does not exist.
+        exception : FabricAuthenticationError
+            If an Azure access token cannot be acquired.
+        exception : FabricDownloadError
+            If the table cannot be downloaded from OneLake.
+        exception : FabricCacheError
+            If the table cannot be written to the local cache.
         """
         try:
             return super().table(tableName)
         except AnalysisException as exc:
             if exc.getCondition() not in _TABLE_FALLBACK_CONDITIONS:
                 raise
-            local_path = _cached_table_path(tableName)
+            local_path = _resolve_table_path(tableName)
             if local_path is None:
                 raise
         logger.info("Reading table %s from the local cache: %s", tableName, local_path)
@@ -420,7 +428,7 @@ class SparkSession(OriginalSparkSession):
 
     def table(self, tableName: str) -> DataFrame:
         """
-        Read a Spark table or view, falling back to tables written to the local cache.
+        Read a Spark table or view, falling back to cached or remote Fabric tables.
 
         :param str tableName:
             Temp view name or table name such as ``lh_gold.dbo.customers``.
@@ -428,7 +436,15 @@ class SparkSession(OriginalSparkSession):
         :returns DataFrame:
             The table data.
         exception : AnalysisException
-            If the name is neither known to local Spark nor in the local cache.
+            If local Spark cannot resolve the name and it cannot identify a Fabric table.
+        exception : FileNotFoundError
+            If the remote Fabric table does not exist.
+        exception : FabricAuthenticationError
+            If an Azure access token cannot be acquired.
+        exception : FabricDownloadError
+            If the table cannot be downloaded from OneLake.
+        exception : FabricCacheError
+            If the table cannot be written to the local cache.
         """
         return self.read.table(tableName)
 
@@ -569,22 +585,29 @@ def get_local_spark() -> SparkSession:
     return spark
 
 
-def _cached_table_path(name: str) -> Path | None:
+def _resolve_table_path(name: str) -> Path | None:
     """
-    Return the cache location of a lakehouse table name if it exists.
+    Resolve a lakehouse table name through the cache, downloading when needed.
 
     :param str name:
         Table name accepted by ``parse_table_name``.
 
     :returns Path | None:
-        The cache location, or None if the name is invalid, needs unset Fabric IDs or is
-        not cached.
+        The cache location, or None if the name is invalid or needs unset Fabric IDs.
+    exception : FileNotFoundError
+        If the remote Fabric table does not exist.
+    exception : FabricAuthenticationError
+        If an Azure access token cannot be acquired.
+    exception : FabricDownloadError
+        If the table cannot be downloaded from OneLake.
+    exception : FabricCacheError
+        If the table cannot be written to the local cache.
     """
     try:
-        local_path = parse_table_name(name).local_path
+        fabric_path = parse_table_name(name)
     except (ValueError, FabricConfigurationError):
         return None
-    return local_path if local_path.exists() else None
+    return Path(resolve_local_path(fabric_path.uri))
 
 
 def _resolve_text_path(path: str) -> list[str]:

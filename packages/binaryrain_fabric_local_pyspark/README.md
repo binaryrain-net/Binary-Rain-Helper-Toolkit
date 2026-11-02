@@ -99,7 +99,7 @@ gold = spark.table("lh_gold.dbo.customers")
 - Save modes behave like Spark. `overwrite` replaces the data, `append` adds files, `ignore` skips existing targets, and the default mode fails when the target exists.
 - `append` checks that columns, types and `partitionBy` columns match. Set `option("mergeSchema", "true")` to allow new or changed columns.
 - `partitionBy` writes `column=value` folders, which are read back as columns.
-- `spark.table` and `spark.read.table` read temp views first and then tables in the cache.
+- `spark.table` and `spark.read.table` read local Spark tables and temp views first, then resolve Fabric table names through the cache. Uncached tables are downloaded from OneLake as Parquet. For example, `spark.table("LH_Silver.src_banqpro.KTO")` uses `FABRIC_WORKSPACE_ID` and reads `LH_Silver.Lakehouse/Tables/src_banqpro/KTO`. Set `FABRIC_CACHE_REFRESH=1` to download again. Authentication and download errors propagate instead of being replaced by Spark namespace errors.
 
 ## What gets cached
 
