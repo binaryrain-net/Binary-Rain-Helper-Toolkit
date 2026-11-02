@@ -28,6 +28,11 @@ ERROR_SAVE_MODES = ("error", "errorifexists", "default")
 SAVE_MODES = ("append", "overwrite", "ignore", *ERROR_SAVE_MODES)
 STORAGE_SCOPE = "https://storage.azure.com/.default"
 FABRIC_TOKEN_SCOPE = "https://database.windows.net/.default"
+# Fabric REST API, used to resolve workspace and lakehouse names to their IDs.
+FABRIC_API_URL = "https://api.fabric.microsoft.com/v1"
+FABRIC_API_SCOPE = "https://api.fabric.microsoft.com/.default"
+FABRIC_API_TIMEOUT_SECONDS = 30
+LAKEHOUSE_SUFFIX = ".Lakehouse"
 # SQL_COPT_SS_ACCESS_TOKEN connection attribute for passing an AAD access token
 # to the ODBC Driver for SQL Server.
 SQL_COPT_SS_ACCESS_TOKEN = 1256

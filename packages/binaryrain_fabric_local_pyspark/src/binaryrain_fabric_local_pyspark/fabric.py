@@ -33,6 +33,7 @@ from binaryrain_fabric_local_pyspark.exceptions import (
     FabricDownloadError,
     FabricWriteError,
 )
+from binaryrain_fabric_local_pyspark.lakehouses import resolve_remote_path
 from binaryrain_fabric_local_pyspark.schemas import FabricPath
 
 logger = logging.getLogger(__name__)
@@ -177,9 +178,11 @@ def cache_table(table: FabricPath | str, refresh: bool = False) -> Path:
     exception : ValueError
         If the path is not a lakehouse ``Tables`` path.
     exception : FabricAuthenticationError
-        If no Azure token can be obtained.
+        If no Azure token can be obtained or the name lookup is rejected.
+    exception : FabricConfigurationError
+        If a workspace or lakehouse name matches more than one item.
     exception : FileNotFoundError
-        If the remote Delta table does not exist.
+        If the remote Delta table, workspace or lakehouse does not exist.
     exception : FabricDownloadError
         If reading the Delta table from Fabric fails.
     exception : FabricCacheError
@@ -191,25 +194,26 @@ def cache_table(table: FabricPath | str, refresh: bool = False) -> Path:
         logger.info("Cache hit, reading local copy: %s", target)
         return target
 
-    logger.info("Cache miss, downloading from Fabric: %s", fabric_path.uri)
+    remote = resolve_remote_path(fabric_path)
+    logger.info("Cache miss, downloading from Fabric: %s", remote.uri)
     options = {"bearer_token": _storage_token(), "use_fabric_endpoint": "true"}
     tmp_path = target.with_name(f"{target.name}.tmp")
     try:
         _remove(tmp_path)
-        dataset = DeltaTable(fabric_path.uri, storage_options=options).to_pyarrow_dataset()
+        dataset = DeltaTable(remote.uri, storage_options=options).to_pyarrow_dataset()
         ds.write_dataset(dataset, tmp_path, format="parquet")
     except TableNotFoundError as exc:
         _remove(tmp_path, quiet=True)
-        raise FileNotFoundError(f"No Delta table found at {fabric_path.uri}") from exc
+        raise FileNotFoundError(f"No Delta table found at {remote.uri}") from exc
     except (DeltaError, pa.ArrowException) as exc:
         _remove(tmp_path, quiet=True)
         raise FabricDownloadError(
-            f"Could not read the Delta table {fabric_path.uri}. Check your access to the "
+            f"Could not read the Delta table {remote.uri}. Check your access to the "
             f"lakehouse and your network connection. Details: {exc}"
         ) from exc
     except OSError as exc:
         _remove(tmp_path, quiet=True)
-        raise FabricCacheError(f"Could not write the cache for {fabric_path.uri}: {exc}") from exc
+        raise FabricCacheError(f"Could not write the cache for {remote.uri}: {exc}") from exc
 
     _commit(tmp_path, target)
     return target
@@ -232,8 +236,10 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
         If the path is not a lakehouse ``Files`` path.
     exception : FabricAuthenticationError
         If Fabric rejects the Azure credentials or no credential is available.
+    exception : FabricConfigurationError
+        If a workspace or lakehouse name matches more than one item.
     exception : FileNotFoundError
-        If the remote file or folder does not exist.
+        If the remote file or folder, workspace or lakehouse does not exist.
     exception : FabricDownloadError
         If the download from Fabric fails.
     exception : FabricCacheError
@@ -245,10 +251,11 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
         logger.info("Cache hit, reading local copy: %s", target)
         return target
 
-    service = DataLakeServiceClient(f"https://{fabric_path.host}", credential=_credential())
-    file_system = service.get_file_system_client(fabric_path.workspace)
-    remote_root = fabric_path.lakehouse_path
-    logger.info("Cache miss, downloading from Fabric: %s", fabric_path.uri)
+    remote = resolve_remote_path(fabric_path)
+    service = DataLakeServiceClient(f"https://{remote.host}", credential=_credential())
+    file_system = service.get_file_system_client(remote.workspace)
+    remote_root = remote.lakehouse_path
+    logger.info("Cache miss, downloading from Fabric: %s", remote.uri)
 
     tmp_path = target.with_name(f"{target.name}.tmp")
     try:
@@ -274,19 +281,19 @@ def cache_file(file: FabricPath | str, refresh: bool = False) -> Path:
         _remove(tmp_path, quiet=True)
         # error_code is added by the Storage SDK, not by azure-core, so it may be missing.
         error_code = getattr(exc, "error_code", None) or "ResourceNotFound"
-        raise FileNotFoundError(f"{error_code}: {fabric_path.uri} not found") from exc
+        raise FileNotFoundError(f"{error_code}: {remote.uri} not found") from exc
     except ClientAuthenticationError as exc:
         _remove(tmp_path, quiet=True)
         raise FabricAuthenticationError(
-            f"Fabric rejected the credentials for {fabric_path.uri}. Run `az login` and check "
+            f"Fabric rejected the credentials for {remote.uri}. Run `az login` and check "
             f"that your account can read the lakehouse. Details: {exc}"
         ) from exc
     except AzureError as exc:
         _remove(tmp_path, quiet=True)
-        raise FabricDownloadError(f"Could not download {fabric_path.uri}: {exc}") from exc
+        raise FabricDownloadError(f"Could not download {remote.uri}: {exc}") from exc
     except OSError as exc:
         _remove(tmp_path, quiet=True)
-        raise FabricCacheError(f"Could not write the cache for {fabric_path.uri}: {exc}") from exc
+        raise FabricCacheError(f"Could not write the cache for {remote.uri}: {exc}") from exc
 
     _commit(tmp_path, target)
     return target

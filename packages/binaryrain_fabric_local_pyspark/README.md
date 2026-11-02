@@ -148,6 +148,21 @@ The default cache folder is relative to the directory you start Python from. Run
 
 The package does not load `.env` files for you. Load them first, for example with `python-dotenv`, and do it before importing the package.
 
+### Workspace and lakehouse names
+
+OneLake rejects paths that mix a workspace GUID with a lakehouse name such as `LH_Silver.Lakehouse`. On a cache miss, the package therefore looks up workspace and lakehouse names through the Fabric REST API and downloads with the GUIDs. The `.Lakehouse` suffix is optional. GUIDs pass through without a lookup.
+
+The lookup uses the same Azure credential as the downloads and needs at least Viewer access to the workspace. Listings are kept in memory for the session. Call `binaryrain_fabric_local_pyspark.lakehouses.clear_cache()` after renaming a lakehouse.
+
+The cache stays keyed by the name you wrote, so cache hits need no network call and existing caches stay valid.
+
+```python
+from binaryrain_fabric_local_pyspark.lakehouses import resolve_lakehouse_id, resolve_workspace_id
+
+workspace_id = resolve_workspace_id("My Workspace")
+lakehouse_id = resolve_lakehouse_id(workspace_id, "LH_Silver")
+```
+
 ## Refreshing the cache
 
 Set `FABRIC_CACHE_REFRESH=1` to refresh everything for one run. To refresh a single table or file, call the helpers directly:
@@ -178,7 +193,7 @@ Every error the package raises on purpose derives from `FabricLocalSparkError` i
 | `FabricQueryError` | The SQL endpoint connection or query fails, or the engine cannot be created. |
 | `SparkLaunchError` | The Spark JVM does not start. Usually Java is missing or `JAVA_HOME` is wrong. |
 
-A path that does not exist in the lakehouse raises the built-in `FileNotFoundError`. A malformed abfss URI raises `ValueError`.
+A path that does not exist in the lakehouse, or a workspace or lakehouse name the REST API does not know, raises the built-in `FileNotFoundError`. A malformed abfss URI raises `ValueError`.
 
 ```python
 from binaryrain_fabric_local_pyspark.exceptions import FabricAuthenticationError
@@ -195,6 +210,7 @@ except FabricAuthenticationError:
 | --- | --- |
 | `spark` | `get_local_spark`, plus the `SparkSession`, `DataFrameReader` and `DataFrameWriter` subclasses |
 | `fabric` | `parse_fabric_path`, `parse_table_name`, `resolve_local_path`, `cache_table`, `cache_file`, `write_cache` |
+| `lakehouses` | `resolve_workspace_id`, `resolve_lakehouse_id`, `resolve_remote_path`, `clear_cache` |
 | `sql` | `get_fabric_engine`, `get_fabric_table_from_lakehouse` |
 | `auth` | `get_token` |
 | `schemas` | `FabricPath` |
@@ -214,7 +230,8 @@ except FabricAuthenticationError:
 - The package only reads from Fabric. Writes go to the local cache and never reach OneLake or the SQL endpoint.
 - `spark.sql` does not see tables you wrote locally. It queries the Fabric SQL endpoint, which has the production data. Use `spark.table(...)`, or register the table as a temp view first.
 - `FABRIC_CACHE_REFRESH=1` and `cache_table(..., refresh=True)` replace locally written tables with the Fabric version.
-- `lh_gold.dbo.x` and `Tables/dbo/x` are cached in different folders, even when `lh_gold` is your default lakehouse.
+- `lh_gold.dbo.x` and `Tables/dbo/x` are cached in different folders, even when `lh_gold` is your default lakehouse. The same holds for a lakehouse referenced once by name and once by GUID.
+- A name that matches several workspaces or lakehouses raises `FabricConfigurationError`. Use the GUID instead.
 - Writes collect the whole DataFrame on the driver, so very large writes need enough memory.
 - `insertInto` and `writeTo` are not redirected. Delta options such as `overwriteSchema` and `replaceWhere` are ignored.
 - A `spark.read.parquet` call with several Fabric paths lists folders in Spark, which needs Hadoop's native libraries on Windows. Read one path per call instead. `spark.read.text` has no such limit, because it lists each cached folder itself.

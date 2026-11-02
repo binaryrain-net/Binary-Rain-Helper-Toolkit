@@ -1,5 +1,6 @@
 """Tests for Fabric path parsing and the local OneLake cache."""
 
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -30,6 +31,8 @@ from binaryrain_fabric_local_pyspark.fabric import (
 from binaryrain_fabric_local_pyspark.schemas import FabricPath
 
 FILE_ROOT = "lh/Files/raw/kunden.parquet"
+GUID_WS = "11111111-1111-1111-1111-111111111111"
+GUID_LH = "22222222-2222-2222-2222-222222222222"
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +58,16 @@ def file_system(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     monkeypatch.setattr(fabric_module, "DataLakeServiceClient", MagicMock(return_value=service))
     monkeypatch.setattr(fabric_module, "_credential", MagicMock())
     return service.get_file_system_client.return_value
+
+
+@pytest.fixture
+def resolve_to_guids(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resolve every remote path to fixed workspace and lakehouse GUIDs."""
+    monkeypatch.setattr(
+        fabric_module,
+        "resolve_remote_path",
+        lambda path: replace(path, workspace=GUID_WS, lakehouse=GUID_LH),
+    )
 
 
 @pytest.fixture
@@ -275,6 +288,34 @@ def test_cache_table_rejects_other_paths(path: str) -> None:
         cache_table(path)
 
 
+@pytest.mark.usefixtures("resolve_to_guids")
+def test_cache_table_reads_resolved_ids_but_caches_by_name(
+    cache_dir: Path, delta_table: MagicMock
+) -> None:
+    """The remote read uses resolved GUIDs while the cache stays keyed by name."""
+    target = cache_table("Tables/dbo/kunden")
+
+    assert target == cache_dir / "ws" / "lh" / "Tables" / "dbo" / "kunden"
+    assert delta_table.call_args.args[0] == (
+        f"abfss://{GUID_WS}@{ONELAKE_HOST}/{GUID_LH}/Tables/dbo/kunden"
+    )
+
+
+@pytest.mark.usefixtures("resolve_to_guids")
+def test_cache_table_hit_skips_name_resolution(
+    monkeypatch: pytest.MonkeyPatch, cache_dir: Path, delta_table: MagicMock
+) -> None:
+    """A cache hit returns before any name is resolved."""
+    resolver = MagicMock()
+    monkeypatch.setattr(fabric_module, "resolve_remote_path", resolver)
+    (cache_dir / "ws" / "lh" / "Tables" / "dbo" / "kunden").mkdir(parents=True)
+
+    cache_table("Tables/dbo/kunden")
+
+    resolver.assert_not_called()
+    delta_table.assert_not_called()
+
+
 # cache_file
 
 
@@ -287,6 +328,24 @@ def test_cache_file_downloads_single_file(cache_dir: Path, file_system: MagicMoc
     assert target == cache_dir / "ws" / "lh" / "Files" / "raw" / "kunden.parquet"
     assert target.read_bytes() == b"content"
     file_system.get_paths.assert_not_called()
+
+
+@pytest.mark.usefixtures("resolve_to_guids")
+def test_cache_file_downloads_with_resolved_ids_but_caches_by_name(
+    cache_dir: Path, file_system: MagicMock
+) -> None:
+    """The download uses resolved GUIDs while the cache stays keyed by name."""
+    remote = f"{GUID_LH}/Files/raw/kunden.parquet"
+    _serve_files(file_system, {remote: b"content"}, is_folder=False)
+
+    target = cache_file("Files/raw/kunden.parquet")
+
+    assert target == cache_dir / "ws" / "lh" / "Files" / "raw" / "kunden.parquet"
+    assert target.read_bytes() == b"content"
+    fabric_module.DataLakeServiceClient.return_value.get_file_system_client.assert_called_once_with(
+        GUID_WS
+    )
+    file_system.get_file_client.assert_called_with(remote)
 
 
 def test_cache_file_downloads_folder(cache_dir: Path, file_system: MagicMock) -> None:
