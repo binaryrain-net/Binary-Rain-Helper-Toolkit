@@ -1,5 +1,6 @@
 azure-identity
 azure-storage-file-datalake
+azure-keyvault-secrets
 deltalake
 pyarrow
 pyspark

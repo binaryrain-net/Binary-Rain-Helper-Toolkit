@@ -8,9 +8,9 @@ import pandas as pd
 import pytest
 from pyspark.errors import AnalysisException
 
-from binaryrain_fabric_local_pyspark import spark as spark_module
 from binaryrain_fabric_local_pyspark.exceptions import FabricCacheError
 from binaryrain_fabric_local_pyspark.spark import SparkSession
+from binaryrain_fabric_local_pyspark.spark import session as session_module
 
 
 @pytest.fixture(autouse=True)
@@ -27,9 +27,9 @@ def fabric_mock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> MagicMock:
     """Replace the Fabric endpoint with a mock and point the cache at a temp folder."""
     fabric_result = pd.DataFrame({"source": ["fabric"]})
     mock = MagicMock(return_value=fabric_result)
-    monkeypatch.setattr(spark_module, "get_fabric_table_from_lakehouse", mock)
-    monkeypatch.setattr(spark_module, "get_fabric_engine", MagicMock())
-    monkeypatch.setattr(spark_module, "CACHE_DIR", tmp_path / "cache" / "files")
+    monkeypatch.setattr(session_module, "get_fabric_table_from_lakehouse", mock)
+    monkeypatch.setattr(session_module, "get_fabric_engine", MagicMock())
+    monkeypatch.setattr(session_module, "CACHE_DIR", tmp_path / "cache" / "files")
     monkeypatch.delenv("FABRIC_CACHE_REFRESH", raising=False)
     return mock
 

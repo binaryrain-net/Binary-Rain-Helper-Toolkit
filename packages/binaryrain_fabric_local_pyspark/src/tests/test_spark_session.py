@@ -9,15 +9,12 @@ import pandas as pd
 import pytest
 from pyspark import SparkContext
 
-from binaryrain_fabric_local_pyspark import spark as spark_module
 from binaryrain_fabric_local_pyspark.exceptions import FabricConfigurationError, SparkLaunchError
-from binaryrain_fabric_local_pyspark.spark import (
-    DataFrameReader,
-    SparkSession,
-    _launch_quiet_gateway,
-    _spark_verbose,
-    get_local_spark,
-)
+from binaryrain_fabric_local_pyspark.spark import DataFrameReader, SparkSession, get_local_spark
+from binaryrain_fabric_local_pyspark.spark import _launch as launch_module
+from binaryrain_fabric_local_pyspark.spark import reader as reader_module
+from binaryrain_fabric_local_pyspark.spark import session as session_module
+from binaryrain_fabric_local_pyspark.spark._launch import _launch_quiet_gateway, _spark_verbose
 
 
 @pytest.fixture
@@ -25,10 +22,10 @@ def launch_mock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> MagicMock:
     """Pretend no JVM runs yet and replace the gateway launcher with a mock."""
     monkeypatch.setattr(SparkContext, "_gateway", None)
     monkeypatch.setattr(SparkContext, "_jvm", None)
-    monkeypatch.setattr(spark_module.java_gateway, "Popen", subprocess.Popen)
-    monkeypatch.setattr(spark_module, "CACHE_DIR", tmp_path / "fabric")
+    monkeypatch.setattr(launch_module.java_gateway, "Popen", subprocess.Popen)
+    monkeypatch.setattr(launch_module, "CACHE_DIR", tmp_path / "fabric")
     mock = MagicMock()
-    monkeypatch.setattr(spark_module.java_gateway, "launch_gateway", mock)
+    monkeypatch.setattr(launch_module.java_gateway, "launch_gateway", mock)
     return mock
 
 
@@ -36,8 +33,8 @@ def launch_mock(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> MagicMock:
 def builder_mock(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     """Replace the PySpark session builder and the quiet launch with mocks."""
     session_class = MagicMock()
-    monkeypatch.setattr(spark_module, "OriginalSparkSession", session_class)
-    monkeypatch.setattr(spark_module, "_launch_quiet_gateway", MagicMock())
+    monkeypatch.setattr(session_module, "OriginalSparkSession", session_class)
+    monkeypatch.setattr(session_module, "_launch_quiet_gateway", MagicMock())
     monkeypatch.delenv("FABRIC_SPARK_DEBUG", raising=False)
     return session_class.builder.config.return_value.getOrCreate
 
@@ -57,7 +54,7 @@ def test_reader_resolves_paths_before_reading(
     local_file = tmp_path / "kunden.parquet"
     pd.DataFrame({"id": [1, 2]}).to_parquet(local_file, index=False)
     resolve = MagicMock(return_value=str(local_file))
-    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+    monkeypatch.setattr(reader_module, "resolve_local_path", resolve)
 
     result = spark.read.parquet("Files/raw/kunden.parquet", mergeSchema=True)
 
@@ -85,7 +82,7 @@ def test_text_reads_cached_file(
     cached = tmp_path / "file.txt"
     cached.write_text("x\ny\n", encoding="utf-8")
     resolve = MagicMock(return_value=str(cached))
-    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+    monkeypatch.setattr(reader_module, "resolve_local_path", resolve)
 
     result = spark.read.text(f"{_TEXT_URI}/file.txt")
 
@@ -103,9 +100,9 @@ def test_text_expands_cached_folder(
     (folder / "sub" / "b.log").write_text("2\n", encoding="utf-8")
     (folder / "_SUCCESS").write_text("skip\n", encoding="utf-8")
     (folder / ".hidden").write_text("skip\n", encoding="utf-8")
-    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+    monkeypatch.setattr(reader_module, "resolve_local_path", MagicMock(return_value=str(folder)))
     text_mock = MagicMock()
-    monkeypatch.setattr(spark_module.OriginalDataFrameReader, "text", text_mock)
+    monkeypatch.setattr(reader_module.OriginalDataFrameReader, "text", text_mock)
 
     spark.read.text(_TEXT_URI, wholetext=True)
 
@@ -121,7 +118,7 @@ def test_text_reads_cached_folder_with_spark(
     folder.mkdir()
     (folder / "a.txt").write_bytes(b"1\n2\n")
     (folder / "b.txt").write_bytes(b"3\n")
-    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+    monkeypatch.setattr(reader_module, "resolve_local_path", MagicMock(return_value=str(folder)))
 
     lines = spark.read.text(_TEXT_URI)
     whole = spark.read.text(_TEXT_URI, wholetext=True)
@@ -136,9 +133,9 @@ def test_text_keeps_empty_cached_folder(
     """An empty cached folder is passed to Spark as the folder itself."""
     folder = tmp_path / "empty"
     folder.mkdir()
-    monkeypatch.setattr(spark_module, "resolve_local_path", MagicMock(return_value=str(folder)))
+    monkeypatch.setattr(reader_module, "resolve_local_path", MagicMock(return_value=str(folder)))
     text_mock = MagicMock()
-    monkeypatch.setattr(spark_module.OriginalDataFrameReader, "text", text_mock)
+    monkeypatch.setattr(reader_module.OriginalDataFrameReader, "text", text_mock)
 
     spark.read.text(_TEXT_URI)
 
@@ -154,7 +151,7 @@ def test_text_accepts_a_list_of_paths(
     first.write_text("one\n", encoding="utf-8")
     second.write_text("two\n", encoding="utf-8")
     cached = {f"{_TEXT_URI}/one.txt": str(first), f"{_TEXT_URI}/two.txt": str(second)}
-    monkeypatch.setattr(spark_module, "resolve_local_path", cached.__getitem__)
+    monkeypatch.setattr(reader_module, "resolve_local_path", cached.__getitem__)
 
     result = spark.read.text(list(cached))
 
@@ -164,7 +161,7 @@ def test_text_accepts_a_list_of_paths(
 def test_text_rejects_table_paths(spark: SparkSession, monkeypatch: pytest.MonkeyPatch) -> None:
     """Tables paths raise before anything is downloaded."""
     resolve = MagicMock()
-    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+    monkeypatch.setattr(reader_module, "resolve_local_path", resolve)
 
     with pytest.raises(FabricConfigurationError, match="Files paths only"):
         spark.read.text("abfss://ws@onelake.dfs.fabric.microsoft.com/lh/Tables/dbo/kunden")
@@ -185,7 +182,7 @@ def test_get_local_spark_quiet_by_default(builder_mock: MagicMock) -> None:
     """Without debug output the JVM is launched quietly and logs only errors."""
     session = get_local_spark()
 
-    spark_module._launch_quiet_gateway.assert_called_once()
+    session_module._launch_quiet_gateway.assert_called_once()
     session.sparkContext.setLogLevel.assert_called_once_with("ERROR")
 
 
@@ -195,7 +192,7 @@ def test_get_local_spark_verbose(builder_mock: MagicMock, monkeypatch: pytest.Mo
 
     session = get_local_spark()
 
-    spark_module._launch_quiet_gateway.assert_not_called()
+    session_module._launch_quiet_gateway.assert_not_called()
     session.sparkContext.setLogLevel.assert_called_once_with("INFO")
 
 
@@ -224,7 +221,7 @@ def test_spark_verbose_from_logger(
 ) -> None:
     """A DEBUG level on the package logger enables verbose output."""
     monkeypatch.delenv("FABRIC_SPARK_DEBUG", raising=False)
-    caplog.set_level("DEBUG", logger=spark_module.logger.name)
+    caplog.set_level("DEBUG", logger="binaryrain_fabric_local_pyspark.spark")
 
     assert _spark_verbose()
 
@@ -256,8 +253,8 @@ def test_quiet_gateway_redirects_output(launch_mock: MagicMock, tmp_path: Path) 
     assert popen_kwargs["stderr"] == subprocess.STDOUT
     assert SparkContext._gateway is launch_mock.return_value
     assert SparkContext._jvm is launch_mock.return_value.jvm
-    assert isinstance(spark_module.java_gateway.Popen, partial)
-    assert spark_module.java_gateway.Popen.keywords == {
+    assert isinstance(launch_module.java_gateway.Popen, partial)
+    assert launch_module.java_gateway.Popen.keywords == {
         "stdout": subprocess.DEVNULL,
         "stderr": subprocess.DEVNULL,
     }
@@ -272,7 +269,7 @@ def test_quiet_gateway_without_log_file_falls_back(
     """If spark.log cannot be created, the normal PySpark launch is used."""
     blocker = tmp_path / "blocker"
     blocker.write_text("not a folder")
-    monkeypatch.setattr(spark_module, "CACHE_DIR", blocker / "fabric")
+    monkeypatch.setattr(launch_module, "CACHE_DIR", blocker / "fabric")
 
     _launch_quiet_gateway(MagicMock())
 

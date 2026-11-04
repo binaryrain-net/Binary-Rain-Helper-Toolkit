@@ -80,6 +80,35 @@ display(widget)  # Any IPython widget or object
 
 In Jupyter it renders through IPython. Without IPython it prints to the console.
 
+## Notebook credentials
+
+Import the local `notebookutils` in your notebook's `local-dev` cell. This replaces the
+notebook variable, not Fabric's installed module. Remove that cell when publishing to
+Fabric, where the built-in `notebookutils` provides the same call.
+
+```python
+from binaryrain_fabric_local_pyspark import notebookutils
+
+secret_value = notebookutils.credentials.getSecret(
+    "https://myvault.vault.azure.net/",
+    "db-password",
+)
+```
+
+Only `credentials.getSecret` is implemented. It accepts the Key Vault HTTPS endpoint
+and secret name, and returns the latest version's plaintext value as a string.
+It uses the same `DefaultAzureCredential` as the package's Fabric reads, such as your
+Azure CLI identity after `az login`. No Spark session or Fabric environment variables
+are required.
+
+Your local identity needs secret Get access, for example the Key Vault Secrets User
+role, and network access through the vault's firewall or private endpoint.
+Fabric workspace Viewer access alone does not grant Key Vault access.
+
+Every call reads Key Vault directly. Secret values are never written to the data cache
+or logged by this module. Unlike Fabric, the local replacement does not redact
+notebook output. Do not print, display or persist secret values.
+
 ## Writes
 
 Writes to a lakehouse go to the local cache, never to OneLake. Your local runs cannot overwrite production data, and you need no Delta Lake or Hadoop setup.
@@ -191,9 +220,14 @@ Every error the package raises on purpose derives from `FabricLocalSparkError` i
 | `FabricCacheError` | The cache folder or SQL result file cannot be written. |
 | `FabricWriteError` | A write uses an unsupported format, targets an existing table in the default mode, or appends a different schema or partitioning. |
 | `FabricQueryError` | The SQL endpoint connection or query fails, or the engine cannot be created. |
+| `FabricSecretError` | Key Vault denies secret access, a secret request fails, or the response has no value. |
 | `SparkLaunchError` | The Spark JVM does not start. Usually Java is missing or `JAVA_HOME` is wrong. |
 
 A path that does not exist in the lakehouse, or a workspace or lakehouse name the REST API does not know, raises the built-in `FileNotFoundError`. A malformed abfss URI raises `ValueError`.
+
+`notebookutils.credentials.getSecret` raises `FabricConfigurationError` for invalid
+inputs, `FabricAuthenticationError` for authentication failures, and `FileNotFoundError`
+when the vault or secret does not exist. Azure exception details are retained as the cause.
 
 ```python
 from binaryrain_fabric_local_pyspark.exceptions import FabricAuthenticationError
@@ -208,11 +242,12 @@ except FabricAuthenticationError:
 
 | Module | Contents |
 | --- | --- |
-| `spark` | `get_local_spark`, plus the `SparkSession`, `DataFrameReader` and `DataFrameWriter` subclasses |
+| `spark` | `get_local_spark`, plus the `SparkSession`, `DataFrameReader` and `DataFrameWriter` subclasses. Their implementations are in `spark.session`, `spark.reader` and `spark.writer` |
 | `fabric` | `parse_fabric_path`, `parse_table_name`, `resolve_local_path`, `cache_table`, `cache_file`, `write_cache` |
 | `lakehouses` | `resolve_workspace_id`, `resolve_lakehouse_id`, `resolve_remote_path`, `clear_cache` |
 | `sql` | `get_fabric_engine`, `get_fabric_table_from_lakehouse` |
 | `auth` | `get_token` |
+| `notebookutils.credentials` | `getSecret`, a local replacement that reads Azure Key Vault |
 | `schemas` | `FabricPath` |
 | `exceptions` | The exception classes above |
 | `config` | Environment variables and constants |

@@ -13,9 +13,9 @@ from pyspark.sql.readwriter import DataFrameWriter as OriginalDataFrameWriter
 
 from binaryrain_fabric_local_pyspark import fabric as fabric_module
 from binaryrain_fabric_local_pyspark import schemas as schemas_module
-from binaryrain_fabric_local_pyspark import spark as spark_module
 from binaryrain_fabric_local_pyspark.exceptions import FabricWriteError
 from binaryrain_fabric_local_pyspark.spark import DataFrameWriter, SparkSession
+from binaryrain_fabric_local_pyspark.spark import reader as reader_module
 
 ABFSS = "abfss://ws@onelake.dfs.fabric.microsoft.com/lh/Tables/dbo/orders"
 
@@ -287,7 +287,7 @@ def test_unknown_table_raises(
 ) -> None:
     """Missing remote tables raise the download error rather than a Spark namespace error."""
     resolve = MagicMock(side_effect=FileNotFoundError("No Delta table found"))
-    monkeypatch.setattr(spark_module, "resolve_local_path", resolve)
+    monkeypatch.setattr(reader_module, "resolve_local_path", resolve)
 
     with pytest.raises(FileNotFoundError, match="No Delta table found"):
         spark.table(name)

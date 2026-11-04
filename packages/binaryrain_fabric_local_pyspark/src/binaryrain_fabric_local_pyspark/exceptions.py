@@ -34,5 +34,9 @@ class FabricQueryError(FabricLocalSparkError):
     """Raised when a query against the Fabric SQL endpoint fails."""
 
 
+class FabricSecretError(FabricLocalSparkError):
+    """Raised when a Key Vault secret cannot be read."""
+
+
 class SparkLaunchError(FabricLocalSparkError):
     """Raised when the local Spark JVM or session cannot be started."""
